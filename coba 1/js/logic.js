@@ -6,12 +6,90 @@ export class Movement {
         this.currentSegmentIndex = 0;
         this.speed = initialSpeed;
         this.acceleration = acceleration;
-        this.currentPosition = { lat: waypoints[0][0], lng: waypoints[0][1] };
+        this.currentPosition = { 
+            lat: waypoints[0][0], 
+            lng: waypoints[0][1],
+            bearing: 0
+        };
         this.turningPoints = this.generateTurningPoints();
         this.currentCurvePoints = null;
         this.curveProgress = 0;
         this.isTurning = false;
         this.nextTurnPrepared = false;
+
+        this.isPaused = false;
+        this.lastPosition = null;
+        this.lastBearing = 0;
+
+        this.totalDistance = this.calculateTotalDistance();
+        this.adaptiveSpeed = this.calculateAdaptiveSpeed();
+    }
+
+    pause() {
+        this.isPaused = true;
+        // Simpan posisi terakhir untuk resume
+        this.lastPosition = { ...this.currentPosition };
+    }
+
+    resume() {
+        this.isPaused = false;
+    }
+
+    reset() {
+        this.currentSegmentIndex = 0;
+        this.speed = CONFIG.initialSpeed;
+        this.currentPosition = { lat: this.waypoints[0][0], lng: this.waypoints[0][1] };
+        this.curveProgress = 0;
+        this.isTurning = false;
+        this.nextTurnPrepared = false;
+        this.isPaused = false;
+    }
+
+    calculateTotalDistance() {
+        let total = 0;
+        for (let i = 0; i < this.waypoints.length - 1; i++) {
+            const start = this.waypoints[i];
+            const end = this.waypoints[i + 1];
+            total += this.calculateDistance(start, end);
+        }
+        return total;
+    }
+
+    calculateDistance(point1, point2) {
+        const R = 6371; // Radius bumi dalam kilometer
+        const lat1 = this.toRadians(point1[0]);
+        const lon1 = this.toRadians(point1[1]);
+        const lat2 = this.toRadians(point2[0]);
+        const lon2 = this.toRadians(point2[1]);
+
+        const dLat = lat2 - lat1;
+        const dLon = lon2 - lon1;
+
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    calculateAdaptiveSpeed() {
+        // Sesuaikan kecepatan berdasarkan total jarak
+        const baseSpeed = this.initialSpeed;
+        const distanceThreshold = 1000; // 1000 km sebagai threshold
+        const speedFactor = Math.min(1, this.totalDistance / distanceThreshold);
+        return baseSpeed * (1 + speedFactor * 2); // Maksimal 3x kecepatan dasar
+    }
+
+    toRadians(degrees) {
+        return degrees * Math.PI / 180;
+    }
+
+    getCurrentPosition() {
+        return {
+            lat: this.currentPosition.lat,
+            lng: this.currentPosition.lng,
+            bearing: this.lastBearing
+        };
     }
 
     generateTurningPoints() {
@@ -57,6 +135,9 @@ export class Movement {
     }
 
     calculateBezierPoint(p0, p1, p2, p3, t) {
+
+        t = this.easeInOutQuad(t);
+
         const oneMinusT = 1 - t;
         const oneMinusTSquared = oneMinusT * oneMinusT;
         const oneMinusTCubed = oneMinusT * oneMinusTSquared;
@@ -69,6 +150,12 @@ export class Movement {
             lng: oneMinusTCubed * p0[1] + 3 * oneMinusTSquared * t * p1[1] + 
                  3 * oneMinusT * tSquared * p2[1] + tCubed * p3[1]
         };
+    }
+
+    easeInOutQuad(t) {
+        return t < 0.5 
+            ? 2 * t * t 
+            : 1 - Math.pow(-2 * t + 2, 2) / 2;
     }
 
     calculateBearing(start, end) {
@@ -91,6 +178,14 @@ export class Movement {
     }
 
     updatePosition(deltaTime) {
+        if (this.isPaused) {
+            return { 
+                lat: this.lastPosition.lat, 
+                lng: this.lastPosition.lng, 
+                bearing: this.lastBearing 
+            };
+        }
+
         if (this.hasReachedEnd()) {
             return { ...this.currentPosition, bearing: 0 };
         }
@@ -132,8 +227,8 @@ export class Movement {
             ];
 
             const adjustedP2 = [
-                endPoint[0] + (turningPoint.controlPoints.p2[0] - endPoint[0]) * 0.8,
-                endPoint[1] + (turningPoint.controlPoints.p2[1] - endPoint[1]) * 0.8
+                endPoint[0] + (turningPoint.controlPoints.p2[0] - endPoint[0]) * 0.5,
+                endPoint[1] + (turningPoint.controlPoints.p2[1] - endPoint[1]) * 0.5
             ];
 
             this.currentCurvePoints = {
