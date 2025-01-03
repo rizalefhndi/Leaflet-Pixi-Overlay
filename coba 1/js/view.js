@@ -49,7 +49,7 @@ export function initializePixiOverlay(map) {
             
             const marker = new PIXI.Sprite(loader.resources[randomMarker].texture);
             marker.anchor.set(0.5);
-            marker.scale.set(0.05);
+            marker.scale.set(0.01);
             marker.visible = true;
             container.addChild(marker);
 

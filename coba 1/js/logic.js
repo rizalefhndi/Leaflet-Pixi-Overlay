@@ -202,13 +202,13 @@ export class Movement {
             Math.pow(this.currentPosition.lng - nextWaypoint[1], 2)
         );
 
-        // Mulai belokan lebih awal (sekitar 60% dari jarak ke waypoint)
+        // Mulai belokan lebih awal (sekitar 40% dari jarak ke waypoint)
         const segmentLength = Math.sqrt(
             Math.pow(nextWaypoint[0] - currentWaypoint[0], 2) +
             Math.pow(nextWaypoint[1] - currentWaypoint[1], 2)
         );
         
-        const turningThreshold = segmentLength * 0.6;
+        const turningThreshold = segmentLength * 0.4;
 
         // Persiapkan belokan berikutnya
         if (!this.isTurning && !this.nextTurnPrepared && distToNext < turningThreshold && turningPoint) {
@@ -219,22 +219,13 @@ export class Movement {
             // Gunakan posisi saat ini sebagai titik awal kurva
             const startPoint = [this.currentPosition.lat, this.currentPosition.lng];
             const endPoint = this.waypoints[this.currentSegmentIndex + 2];
+        
 
-            // Sesuaikan control points berdasarkan posisi saat ini
-            const adjustedP1 = [
-                startPoint[0] + (turningPoint.controlPoints.p1[0] - startPoint[0]) * 0.8,
-                startPoint[1] + (turningPoint.controlPoints.p1[1] - startPoint[1]) * 0.8
-            ];
-
-            const adjustedP2 = [
-                endPoint[0] + (turningPoint.controlPoints.p2[0] - endPoint[0]) * 0.5,
-                endPoint[1] + (turningPoint.controlPoints.p2[1] - endPoint[1]) * 0.5
-            ];
-
+            // Gunakan control points original tanpa adjustment
             this.currentCurvePoints = {
                 p0: startPoint,
-                p1: adjustedP1,
-                p2: adjustedP2,
+                p1: turningPoint.controlPoints.p1,
+                p2: turningPoint.controlPoints.p2,
                 p3: endPoint
             };
         }
@@ -244,7 +235,7 @@ export class Movement {
 
         if (this.isTurning) {
             // Kecepatan kurva yang konsisten
-            const curveSpeed = 0.01 * (CONFIG.initialSpeed / this.speed);
+            const curveSpeed = 0.015 * (CONFIG.initialSpeed / this.speed);
             this.curveProgress += curveSpeed;
 
             if (this.curveProgress >= 1) {
