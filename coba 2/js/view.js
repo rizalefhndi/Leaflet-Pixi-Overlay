@@ -4,6 +4,10 @@ import { SimulationManager } from './manage.js';
 
 export function initializePixiOverlay(map) {
     const container = new PIXI.Container();
+    container.visible = true;
+    container.sortableChildren = true; 
+    container.alpha = 1;
+
     const simulationManager = new SimulationManager();
 
     map.on('move', () => {
@@ -46,22 +50,62 @@ export function initializePixiOverlay(map) {
         Object.keys(CONFIG.waypoints).forEach((route, index) => {
             const randomMarker = CONFIG.markerTypes[Math.floor(Math.random() * CONFIG.markerTypes.length)];
             const movement = new Movement(CONFIG.waypoints[route], CONFIG.initialSpeed, CONFIG.acceleration);
-            
+            const id = `Pesawat ${index}`;
+
             const marker = new PIXI.Sprite(loader.resources[randomMarker].texture);
             marker.anchor.set(0.5);
             marker.scale.set(0.01);
+            marker.alpha = 1;
+            marker.zIndex = index + 1;
             marker.visible = true;
+            marker.interactive = true;
+            marker.buttonMode = true;
             container.addChild(marker);
 
-            simulationManager.createObject(`object${index}`, movement, marker);
+             // Add click event listener to each marker
+            //  marker.interactive = true;
+            //  marker.buttonMode = true;
+ 
+             marker.on('pointerdown', function() {
+                 // Menampilkan card kecil di bawah kiri
+                 const card = document.getElementById("card");
+                 card.style.display = "block";
+ 
+                 // Mengubah konten card sesuai dengan data objek
+                 const currentPosition = movement.getCurrentPosition();
+
+                 const cardBody = card.querySelector(".card-body");
+                 cardBody.innerHTML = `
+                    <p><strong>Name:</strong> <span>${id}</span></p>
+                    <p><strong>Speed:</strong> <span>${currentPosition.speed} km/h</span></p>
+                    <p><strong>Altitude:</strong> <span>${currentPosition.altitude} m</span></p>
+                    <p><strong>Fuel:</strong> <span>${currentPosition.fuel} kg</span></p>
+                    <p><strong>Position:</strong> <span>Lat: ${currentPosition.lat}, <br> Lng: ${currentPosition.lng}</span></p>
+                `;
+
+             });
+
+            // simulationManager.createObject(`object${index}`, movement, marker);
+            simulationManager.createObject(id, movement, marker);
+
         });
 
         const pixiOverlay = L.pixiOverlay((utils) => {
-            
+            // Set utils container properties
+            const utils_container = utils.getContainer();
+            utils_container.visible = true;
+            utils_container.alpha = 1;
+
             simulationManager.initialize(utils);
-            simulationManager.animate();
             
-        }, container);
+            // Force initial render
+            utils.getRenderer().render(utils_container);
+        }, container, {
+            padding: 0,
+            forceCanvas: false,
+            preserveDrawingBuffer: true
+        });
+
         pixiOverlay.addTo(map);
     });
 }

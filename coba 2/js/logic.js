@@ -5,7 +5,7 @@ export class Movement {
         this.waypoints = waypoints;
         this.currentSegmentIndex = 0;
 
-        console.log('waypoints: ', waypoints)
+        // console.log('waypoints: ', waypoints)
         
         // Position and movement state
         this.currentPosition = {
@@ -60,7 +60,10 @@ export class Movement {
         return {
             lat: this.currentPosition.lat,
             lng: this.currentPosition.lng,
-            bearing: this.lastBearing
+            bearing: this.currentPosition.bearing,
+            speed: this.speed,
+            altitude: this.currentPosition.altitude,
+            fuel: this.fuel.toFixed(2)
         };
     }
 
@@ -97,6 +100,8 @@ export class Movement {
             : -CONFIG.movement.altitude.climbRate;
     
         this.currentPosition.altitude += climbRateSpeed * deltaTime;
+
+        // console.log(this.currentPosition.altitude)
     
         if ((climbRateSpeed > 0 && this.currentPosition.altitude > targetAltitude) ||
             (climbRateSpeed < 0 && this.currentPosition.altitude < targetAltitude)) {
@@ -116,6 +121,8 @@ export class Movement {
         if (speedDiff > 0) {
             this.speed += CONFIG.movement.speed.acceleration * deltaTime;
             this.speed = Math.min(this.speed, targetSpeed);
+
+            // console.log(this.speed)
         } else {
             this.speed -= CONFIG.movement.speed.deceleration * deltaTime;
             this.speed = Math.max(this.speed, targetSpeed);
@@ -126,7 +133,7 @@ export class Movement {
         const currentBearing = this.currentPosition.bearing;
         const bearingDiff = ((this.targetBearing - currentBearing + 540) % 360) - 180;
         
-        if (Math.abs(bearingDiff) < 0.01) {
+        if (Math.abs(bearingDiff) < 1) {
             this.currentPosition.bearing = this.targetBearing;
             return;
         }
@@ -137,7 +144,7 @@ export class Movement {
         this.currentPosition.bearing = (currentBearing + turnAmount * turnDirection + 360) % 360;
     }
 
-    calculateFuelConsumption(deltaTime, isInTurn) {
+    calculateFuelConsumption(deltaTime, isInTurn, isClimbing) {
         const distanceCovered = (this.speed / 3600) * deltaTime; // Convert speed to km/s
         let consumption;
 
@@ -153,7 +160,15 @@ export class Movement {
                     consumption = CONFIG.movement.fuel.consumptionRate.turning.tight;
                     break;
             }
-        } 
+        } else if (isClimbing) {
+            consumption = CONFIG.movement.fuel.consumptionRate.climbing;
+        } else {
+            consumption = CONFIG.movement.fuel.consumptionRate.cruising;
+        }
+        // console.log("Phase: ", isInTurn ? "Turning" : isClimbing ? "Climbing" : "Cruising");
+        // console.log("distance: ", distanceCovered);
+        // console.log("consumption: ", consumption);
+        // console.log("Total fuel consumption:", consumption * distanceCovered);
 
         return consumption * distanceCovered;
     }
@@ -171,6 +186,7 @@ export class Movement {
         this.updateSpeed(deltaTime, this.targetSpeed);
 
         // Update altitude
+        const isClimbing = Math.abs(this.currentPosition.altitude - this.targetAltitude) > 1;
         this.updateAltitude(deltaTime, this.targetAltitude);
 
         // Calculate next waypoint bearing
@@ -191,9 +207,11 @@ export class Movement {
         this.updateBearing(deltaTime);
 
         // Update fuel consumption
-        const fuelUsed = this.calculateFuelConsumption(deltaTime, isInTurn);
+        const fuelUsed = this.calculateFuelConsumption(deltaTime, isInTurn, isClimbing);
         this.fuel = Math.max(0, this.fuel - fuelUsed);
 
+        // console.log("Fuel Remaining:", this.fuel.toFixed(2));
+        
         // Calculate new position
         const distanceMoved = (this.speed / 3600) * deltaTime; // Convert to km/s
         const bearingRad = this.toRadians(this.currentPosition.bearing);
@@ -234,7 +252,7 @@ export class Movement {
     }
 
     hasReachedEnd() {
-        return this.currentSegmentIndex >= this.waypoints.length - 1;
+        return this.currentSegmentIndex >= this.waypoints.length - 2;
     }
 
     // Helper methods for calculations
@@ -247,7 +265,10 @@ export class Movement {
     }
 
     calculateBearing(start, end) {
-        
+        if (!start || !end || start.length < 2 || end.length < 2) {
+            console.error('Invalid start or end coordinates:', start, end);
+            return null; // Menghindari akses elemen yang tidak ada
+        }
         const lat1 = this.toRadians(start[0]);
         const lon1 = this.toRadians(start[1]);
         const lat2 = this.toRadians(end[0]);

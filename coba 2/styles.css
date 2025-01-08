@@ -14,3 +14,38 @@
     padding: 5px 15px;
     cursor: pointer;
 }
+
+.card {
+    position: fixed;
+    opacity: 80%;
+    bottom: 20px;
+    left: 20px;
+    width: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    z-index: 1000;
+}
+
+.card-header {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    padding: 14px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.card-body {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-body p {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0; 
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+

@@ -1,13 +1,13 @@
 export const CONFIG = {
-    waypoints: generateRoutes(120),
+    waypoints: generateRoutes(1000),
     markerTypes: ['jet-plane.png', 'aircraft.png', 'monoplane.png', 'small-plane.png'],
     frameRate: 60,
 
     // Aircraft movement properties
     movement: {
         speed: {
-            initial: 500,          // kph
-            max: 900,           // kph (sekitar 500 knots)
+            initial: 5000,          // kph
+            max: 50000,           // kph (sekitar 500 knots)
             min: 0,            // kph
             acceleration: 50,   // kph/s
             deceleration: 30    // kph/s
@@ -29,10 +29,11 @@ export const CONFIG = {
         },
         
         fuel: {
-            capacity: 2000,           // kg
+            capacity: 800,           // kg
             consumptionRate: {
                 // Base consumption per kilometer at different phases
                 climbing: 4.2,         // kg/km while climbing
+                cruising: 3.5,         // kg/km while cruising (moving straight)
                 turning: {
                     slack: 3.8,        // kg/km during slack turn
                     normal: 4.0,       // kg/km during normal turn
@@ -88,9 +89,8 @@ function generateRoutes(totalRoutes) {
         ]);
 
         // Tambahkan tipe belokan secara acak
-        const turnTypes = ["tight", "normal", "slack"];
+        const turnTypes = ["slack", "normal", "tight"];
         const turns = newRoute.map(() => turnTypes[Math.floor(Math.random() * turnTypes.length)]);
-
 
         generatedRoutes[`route${i}`] = { route: newRoute, turn: turns };
     }
