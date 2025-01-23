@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Projek - Game Server</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    
+	<!-- leaflet motion -->
+	<script src="./js/logicMotion/leaflet.motion.js"></script>
+    <script src="./js/logicMotion/leaflet.motion.easing.js"></script>
+    <script src="./js/logicMotion/leaflet.motion.utils.js"></script>
+
+	<!-- layer leaflet motion -->
+	<script src="./js/logicMotion/layer/leaflet.motion.group.js"></script>
+	<script src="./js/logicMotion/layer/leaflet.motion.polygon.js"></script>
+	<script src="./js/logicMotion/layer/leaflet.motion.polyline.js"></script>
+	<script src="./js/logicMotion/layer/leaflet.motion.seq.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.8/dist/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-pixi-overlay@1.9.4/L.PixiOverlay.min.js"></script>
+</head>
+<body>
+    <div id="map" style="width: 100%; height: 100vh;"></div>
+    <script type="module">
+        import { viewPergerakan } from './js/objectPergerakan/view.js';
+        const map = L.map('map').setView([-1, 118], 5);
+
+        L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+            attribution: 'Mini Projek | Game Server © 2025',
+			subdomains:['mt0','mt1','mt2','mt3'],
+			maxZoom: 20,
+        }).addTo(map);
+
+        viewPergerakan(map);
+    </script>
+</body>
+</html>

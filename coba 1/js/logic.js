@@ -136,7 +136,7 @@ export class Movement {
 
     calculateBezierPoint(p0, p1, p2, p3, t) {
 
-        t = this.easeInOutQuad(t);
+        t = this.tQuad(t);
 
         const oneMinusT = 1 - t;
         const oneMinusTSquared = oneMinusT * oneMinusT;
@@ -152,7 +152,7 @@ export class Movement {
         };
     }
 
-    easeInOutQuad(t) {
+    InOutQuad(t) {
         return t < 0.5 
             ? 2 * t * t 
             : 1 - Math.pow(-2 * t + 2, 2) / 2;
