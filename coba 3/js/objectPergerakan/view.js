@@ -4,10 +4,25 @@ import { CONFIG } from './config.js';
 export function viewPergerakan(map) {
   map.getPane('mapPane').style.backgroundColor = '#333';
 
-  const randomRouteIndex = Math.floor(Math.random() * Object.keys(CONFIG.waypoints).length);
-  const randomRoute = CONFIG.waypoints[`route${randomRouteIndex + 1}`];
-  const aircraftMovement = new Movement(randomRoute, CONFIG.initialSpeed, CONFIG.acceleration);
-  let aircraftLayer;
+   // Create control buttons
+   
+   const controlsDiv = document.createElement('div');
+   controlsDiv.className = 'simulation-controls';
+   controlsDiv.innerHTML = `
+	   <button id="playBtn">Play</button>
+	   <button id="stopBtn">Stop</button>
+	   <button id="resumeBtn">Resume</button>
+   `;
+   document.body.appendChild(controlsDiv);
+
+   const randomRouteIndex = Math.floor(Math.random() * Object.keys(CONFIG.waypoints).length);
+   const randomRoute = CONFIG.waypoints[`route${randomRouteIndex + 1}`];
+   const aircraftMovement = new Movement(randomRoute, CONFIG.initialSpeed, CONFIG.acceleration);
+   let aircraftLayer;
+
+   document.getElementById('playBtn').addEventListener('click', () => aircraftMovement.startMovement());
+   document.getElementById('stopBtn').addEventListener('click', () => aircraftMovement.pause());
+   document.getElementById('resumeBtn').addEventListener('click', () => aircraftMovement.resume());
 
   function updateAircraftPosition() {
     const newPosition = aircraftMovement.moveAircraft();
