@@ -1,53 +1,47 @@
-import { Movement } from './logic.js';
+import { ObjectPergerakan } from './logic.js';
 import { CONFIG } from './config.js';
 
-export function viewPergerakan(map) {
-  map.getPane('mapPane').style.backgroundColor = '#333';
+function viewPergerakan(map) {
+  const objectsPergerakan = [];
 
-   // Create control buttons
-   
-   const controlsDiv = document.createElement('div');
-   controlsDiv.className = 'simulation-controls';
-   controlsDiv.innerHTML = `
-	   <button id="playBtn">Play</button>
-	   <button id="stopBtn">Stop</button>
-	   <button id="resumeBtn">Resume</button>
-   `;
-   document.body.appendChild(controlsDiv);
+  // Tambahkan kontrol simulasi ke peta
+  const controlsDiv = document.createElement('div');
+  controlsDiv.className = 'simulation-controls';
+  controlsDiv.innerHTML = `
+    <button id="play-btn">Play/Pause</button>
+    <button id="stop-btn">Stop</button>
+  `;
+  map.getContainer().appendChild(controlsDiv);
 
-   const randomRouteIndex = Math.floor(Math.random() * Object.keys(CONFIG.waypoints).length);
-   const randomRoute = CONFIG.waypoints[`route${randomRouteIndex + 1}`];
-   const aircraftMovement = new Movement(randomRoute, CONFIG.initialSpeed, CONFIG.acceleration);
-   let aircraftLayer;
+  CONFIG.waypoints.forEach((route, index) => {
+    const objectPergerakan = new ObjectPergerakan(map, route);
+    
+    objectPergerakan.setObjectPergerakan();
+    objectsPergerakan.push(objectPergerakan);
+  });
 
-   document.getElementById('playBtn').addEventListener('click', () => aircraftMovement.startMovement());
-   document.getElementById('stopBtn').addEventListener('click', () => aircraftMovement.pause());
-   document.getElementById('resumeBtn').addEventListener('click', () => aircraftMovement.resume());
+  const playBtn = document.getElementById('play-btn');
+  const stopBtn = document.getElementById('stop-btn');
 
-  function updateAircraftPosition() {
-    const newPosition = aircraftMovement.moveAircraft();
-    if (aircraftLayer) {
-      aircraftLayer.setLatLng(newPosition);
+  let isPlaying = false;
+
+  playBtn.addEventListener('click', () => {
+    if (!isPlaying) {
+      objectsPergerakan.forEach(obj => obj.mediaStart());
+      isPlaying = true;
+      playBtn.textContent = 'Pause';
     } else {
-      const randomMarkerType = CONFIG.markerTypes[Math.floor(Math.random() * CONFIG.markerTypes.length)];
-      const aircraftIcon = L.icon({
-        iconUrl: `./assets/${randomMarkerType}`,
-        iconSize: [32, 32],
-      });
-      aircraftLayer = L.marker([newPosition.lat, newPosition.lng], {
-        icon: aircraftIcon,
-        className: 'aircraft-marker',
-      })
-      .addTo(map)
-      .setZIndexOffset(1);
+      objectsPergerakan.forEach(obj => obj.mediaPause());
+      isPlaying = false;
+      playBtn.textContent = 'Play';
     }
-    requestAnimationFrame(updateAircraftPosition);
-  }
+  });
 
-  const aircraftMarkerStyle = document.createElement('style');
-  aircraftMarkerStyle.innerHTML = `.aircraft-marker { filter: drop-shadow(0px 5px 5px rgba(0,0,0,1)); }`;
-  document.head.appendChild(aircraftMarkerStyle);
-
-  aircraftMovement.startMovement();
-  updateAircraftPosition();
+  stopBtn.addEventListener('click', () => {
+    objectsPergerakan.forEach(obj => obj.mediaStop());
+    isPlaying = false;
+    playBtn.textContent = 'Play';
+  });
 }
+
+export { viewPergerakan };

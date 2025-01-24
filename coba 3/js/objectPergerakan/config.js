@@ -1,7 +1,7 @@
 export const CONFIG = {
-    waypoints: generateRoutes(1000),
+    waypoints: generateRoutes(10),
     markerTypes: ['jet-plane.png', 'aircraft.png', 'monoplane.png', 'small-plane.png'],
-    initialSpeed: 0.01,
+    initialSpeed: 4000,
     acceleration: 0.01,
     frameRate: 60,
     maxSpeedMultiplier: 3,
@@ -42,7 +42,7 @@ function generateRoutes(totalRoutes) {
         ],
     ];
 
-    const generatedRoutes = {};
+    const generatedRoutes = [];
 
     for (let i = 1; i <= totalRoutes; i++) {
         const baseRoute = baseRoutes[i % baseRoutes.length];
@@ -51,7 +51,9 @@ function generateRoutes(totalRoutes) {
             lng + (Math.random() - 0.5) * 0.1,
         ]);
 
-        generatedRoutes[`route${i}`] = newRoute;
+        // generatedRoutes[`route${i}`] = newRoute;
+        generatedRoutes.push(newRoute);
+
     }
 
     return generatedRoutes;

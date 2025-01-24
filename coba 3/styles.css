@@ -13,4 +13,21 @@
     margin: 0 5px;
     padding: 5px 15px;
     cursor: pointer;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    transition: all 0.3s ease;
 }
+
+.simulation-controls button:hover {
+    background-color: #e0e0e0;
+    transform: scale(1.05);
+}
+
+.leaflet-layer,
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-control-attribution {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
