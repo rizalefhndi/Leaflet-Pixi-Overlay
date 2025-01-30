@@ -27,7 +27,7 @@ class ObjectPergerakan {
     const iconPath = CONFIG.markerTypes[Math.floor(Math.random() * CONFIG.markerTypes.length)];
     return L.divIcon({
         html: `<div style="transform: rotate(${bearing}deg);">
-                 <img src="./assets/${iconPath}" style="width: 32px; height: 32px;">
+                  <img src="./assets/${iconPath}" style="width: 32px; height: 32px;">
                </div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 16],
@@ -36,10 +36,14 @@ class ObjectPergerakan {
     });
   }
 
-
   setObjectPergerakan() {
+    const initialBearing = this.calculateBearing(
+      this.waypoints[0],
+      this.waypoints[1]
+    );
+
     const motionPolyline = L.motion.polyline(this.waypoints, {
-      color: "transparent"
+      color: "red"
     }, {
       auto: false,
       speed: this.speed
@@ -49,7 +53,7 @@ class ObjectPergerakan {
       removeOnEnd: false,
       length: 0,
       width: 0,
-      icon: this.icon
+      icon: this.createCustomIcon(initialBearing)
     });
 
     motionPolyline.addTo(this.map);
@@ -93,46 +97,65 @@ class ObjectPergerakan {
   onEnd() {
     this.isPlaying = false;
     console.log("Motion ended");
+    if (this.objectPergerakan && this.waypoints.length > 1) {
+        const lastBearing = this.calculateBearing(
+            this.waypoints[this.waypoints.length - 2],
+            this.waypoints[this.waypoints.length - 1]
+        );
+        this.objectPergerakan.getMarker().setIcon(this.createCustomIcon(lastBearing));
+    }
   }
 
   onMove(evt) {
-    if (!evt || !evt.latlng) {
-        return;
+    if (!evt || !evt.latlng) return;
+    
+    const currentPos = [evt.latlng.lat, evt.latlng.lng];
+    this.lastPosition = currentPos;
+
+    // Cari waypoint terdekat berikutnya
+    let closestNextIndex = 1;
+    let minDistance = Infinity;
+
+    for (let i = 0; i < this.waypoints.length; i++) {
+      const distance = this.calculateDistance(currentPos, this.waypoints[i]);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestNextIndex = Math.min(i + 1, this.waypoints.length - 1);
+      }
     }
 
-    const currentLatLng = [evt.latlng.lat, evt.latlng.lng];
-    this.lastPosition = currentLatLng;
+    // Hitung bearing ke waypoint berikutnya
+    const nextWaypoint = this.waypoints[closestNextIndex];
+    const bearing = this.calculateBearing(currentPos, nextWaypoint);
 
-    let nextWaypointIndex = this.currentSegmentIndex + 1;
-    if (nextWaypointIndex >= this.waypoints.length) {
-        nextWaypointIndex = this.currentSegmentIndex;
+    // Update rotasi marker
+    if (this.objectPergerakan && this.objectPergerakan.getMarker()) {
+      const marker = this.objectPergerakan.getMarker();
+      marker.setIcon(this.createCustomIcon(bearing));
     }
+  }
 
-    const nextLatLng = this.waypoints[nextWaypointIndex];
+  findNextWaypoint(currentLatLng) {
+    let minDistance = Infinity;
+    let nextIndex = this.currentSegmentIndex + 1;
 
-    if (currentLatLng && nextLatLng) {
-        const newBearing = this.calculateBearing(currentLatLng, nextLatLng);
-
-        if (this.objectPergerakan && this.objectPergerakan.getMarker()) {
-            this.objectPergerakan.getMarker().setIcon(
-                this.createCustomIcon(newBearing)
-            );
+    for (let i = 0; i < this.waypoints.length - 1; i++) {
+      const segmentStart = this.waypoints[i];
+      const segmentEnd = this.waypoints[i + 1];
+      
+      const d1 = this.calculateDistance(currentLatLng, segmentStart);
+      const d2 = this.calculateDistance(currentLatLng, segmentEnd);
+      const segmentLength = this.calculateDistance(segmentStart, segmentEnd);
+      
+      if (d1 + d2 < segmentLength + 0.00001) {
+        if (d1 < minDistance) {
+          minDistance = d1;
+          nextIndex = i + 1;
         }
-
-        this.currentPosition = {
-            lat: currentLatLng[0],
-            lng: currentLatLng[1],
-            bearing: newBearing,
-            altitude: 0
-        };
-
-        const currentWaypoint = this.waypoints[this.currentSegmentIndex];
-        const distance = this.calculateDistance(currentLatLng, currentWaypoint);
-
-        if (distance < 0.00001) {
-            this.currentSegmentIndex = Math.min(this.currentSegmentIndex + 1, this.waypoints.length - 1);
-        }
+      }
     }
+
+    return Math.min(nextIndex, this.waypoints.length - 1);
   }
 
   getLatLng(status) {
@@ -202,9 +225,8 @@ class ObjectPergerakan {
   }
 
   calculateInitialBearing() {
-    const start = [this.waypoints[0][0], this.waypoints[0][1]];
-    const end = [this.waypoints[1][0], this.waypoints[1][1]];
-    return this.calculateBearing(start, end);
+    if (this.waypoints.length < 2) return 0;
+    return this.calculateBearing(this.waypoints[0], this.waypoints[1]);
   }
 
   calculateBearing(start, end) {
@@ -216,7 +238,7 @@ class ObjectPergerakan {
     const dLng = endLng - startLng;
 
     const y = Math.sin(dLng) * Math.cos(endLat);
-    const x = Math.cos(startLat) * Math.sin(endLat) - 
+    const x = Math.cos(startLat) * Math.sin(endLat) -
               Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
 
     let bearing = Math.atan2(y, x);
@@ -226,19 +248,21 @@ class ObjectPergerakan {
 
 
   calculateDistance(point1, point2) {
+    const R = 6371;
     const lat1 = this.toRadians(point1[0]);
     const lon1 = this.toRadians(point1[1]);
     const lat2 = this.toRadians(point2[0]);
     const lon2 = this.toRadians(point2[1]);
-    
+
     const dLat = lat2 - lat1;
     const dLon = lon2 - lon1;
-    
+
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1) * Math.cos(lat2) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-              
-    return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+             Math.cos(lat1) * Math.cos(lat2) *
+             Math.sin(dLon/2) * Math.sin(dLon/2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   }
 
   toRadians(degrees) {

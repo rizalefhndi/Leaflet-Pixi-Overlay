@@ -19,14 +19,26 @@
 	<script src="./js/logicMotion/layer/leaflet.motion.polyline.js"></script>
 	<script src="./js/logicMotion/layer/leaflet.motion.seq.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.8/dist/browser/pixi.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-pixi-overlay@1.9.4/L.PixiOverlay.min.js"></script>
+    <!-- leaflet pixiOverlay -->
+	<script src="./js/logicPixi/leaflet.pixiOverlay.js"></script>
+    <script src="./js/logicPixi/leaflet.pixiOverlay.easing.js"></script>
+    <script src="./js/logicPixi/leaflet.pixiOverlay.utils.js"></script>
+
+	<!-- layer leaflet pixiOverlay -->
+	<script src="./js/logicPixi/layer/leaflet.pixiOverlay.group.js"></script>
+	<script src="./js/logicPixi/layer/leaflet.pixiOverlay.polygon.js"></script>
+	<script src="./js/logicPixi/layer/leaflet.pixiOverlay.polyline.js"></script>
+	<script src="./js/logicPixi/layer/leaflet.pixiOverlay.seq.js"></script>
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.8/dist/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-pixi-overlay@1.9.4/L.PixiOverlay.min.js"></script> -->
 </head>
 <body>
     <div id="map" style="width: 100%; height: 100vh;"></div>
     <script type="module">
         import { viewPergerakan } from './js/objectPergerakan/view.js';
         const map = L.map('map').setView([-1, 118], 5);
+        console.log(L)
 
         L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
             attribution: 'Mini Projek | Game Server © 2025',
