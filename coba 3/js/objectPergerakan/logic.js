@@ -94,6 +94,7 @@ class ObjectPergerakan {
   onStart() {
     this.isPlaying = true;
     
+    // Jika ini adalah pertama kali, set waktu terakhir
     if (!this.lastUpdateTime) {
       this.lastUpdateTime = Date.now();
     }
@@ -109,18 +110,20 @@ class ObjectPergerakan {
         // Batasi kecepatan pada targetSpeed
         this.speed = Math.min(this.currentSpeed, this.targetSpeed);
   
-        console.log("update speed:", this.speed);
+        // console.log("Update speed:", this.speed);
   
         // Update waktu terakhir untuk perhitungan selanjutnya
         this.lastUpdateTime = currentTime;
-
+  
+        // Panggil lagi updateMotion secara berkelanjutan
         requestAnimationFrame(updateMotion);
       }
     };
   
+    // Mulai pembaruan berkelanjutan
     requestAnimationFrame(updateMotion);
-  }  
-
+  }
+  
   onPause() {
     if (this.objectPergerakan) {
       this.objectPergerakan.motionPause();
@@ -136,25 +139,26 @@ class ObjectPergerakan {
       console.log("Motion resumed");
     }
   }
-
+  
   onEnd() {
     this.isPlaying = false;
     console.log("Motion ended");
     if (this.objectPergerakan) {
-        this.objectPergerakan.motionStop();
+      this.objectPergerakan.motionStop();
     }
   }
-
+  
   onMove(evt) {
     if (!evt || !evt.latlng) return;
     
     const currentPos = [evt.latlng.lat, evt.latlng.lng];
     this.lastPosition = currentPos;
-
+  
     if (evt.distance !== undefined && evt.heading !== undefined) {
-        console.log(`Distance: ${evt.distance}km, Heading: ${evt.heading}°`);
+      console.log(`Distance: ${evt.distance}km, Heading: ${evt.heading}°`);
     }
   }
+  
 
   getLatLng(status) {
     if (this.lastPosition) {
