@@ -14,16 +14,19 @@ class ObjectPergerakan {
     };
 
     this.speed = initialSpeed;
+    this.currentSpeed = initialSpeed;
+    this.targetSpeed = CONFIG.maxSpeed;
+    this.acceleration = CONFIG.acceleration;
+    this.lastUpdateTime = Date.now();
+
     this.objectPergerakan = false;
     this.motionPolylines = [];
     this.isPlaying = false;
     this.lastPosition = null;
-
-    this.targetBearing = this.calculateInitialBearing();
-    this.icon = this.createCustomIcon(this.targetBearing);
+    this.icon = this.createCustomIcon();
   }
 
-  createCustomIcon(bearing) {
+  createCustomIcon() {
     const iconPath = CONFIG.markerTypes[Math.floor(Math.random() * CONFIG.markerTypes.length)];
     return L.divIcon({
         html: `<div motion-base="270">
@@ -38,7 +41,7 @@ class ObjectPergerakan {
 
   setObjectPergerakan() {
     const motionPolyline = L.motion.polyline(this.waypoints, {
-      color: "red"
+      color: "transparent",
     }, {
       auto: false,
       speed: this.speed
@@ -74,22 +77,64 @@ class ObjectPergerakan {
     motionPolyline.on(L.Motion.Event.Move, this.onMove.bind(this));
   }
 
+  // onStart() {
+  //   this.isPlaying = true;
+    
+  //   const currentTime = Date.now();
+  //   const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+    
+  //   // Hitung kecepatan berdasarkan percepatan
+  //   this.currentSpeed += this.acceleration * deltaTime;
+    
+  //   // Batasi kecepatan pada targetSpeed
+  //   this.speed = Math.min(this.currentSpeed, this.targetSpeed);
+    
+  // }
+
   onStart() {
     this.isPlaying = true;
-    this.objectPergerakan.motionStart();
-    console.log("Motion started");
-  }
+    
+    if (!this.lastUpdateTime) {
+      this.lastUpdateTime = Date.now();
+    }
+    
+    const updateMotion = () => {
+      if (this.isPlaying) {
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;  // deltaTime dalam detik
+  
+        // Hitung kecepatan berdasarkan percepatan
+        this.currentSpeed += this.acceleration * deltaTime;
+  
+        // Batasi kecepatan pada targetSpeed
+        this.speed = Math.min(this.currentSpeed, this.targetSpeed);
+  
+        console.log("update speed:", this.speed);
+  
+        // Update waktu terakhir untuk perhitungan selanjutnya
+        this.lastUpdateTime = currentTime;
+
+        requestAnimationFrame(updateMotion);
+      }
+    };
+  
+    requestAnimationFrame(updateMotion);
+  }  
 
   onPause() {
-    this.isPlaying = false;
-    this.objectPergerakan.motionPause();
-    console.log("Motion paused");
+    if (this.objectPergerakan) {
+      this.objectPergerakan.motionPause();
+      this.isPlaying = false;
+      console.log("Motion paused");
+    }
   }
-
+  
   onResume() {
-    this.isPlaying = true;
-    this.objectPergerakan.motionResume();
-    console.log("Motion resumed");
+    if (this.objectPergerakan && !this.isPlaying) {
+      this.objectPergerakan.motionResume();
+      this.isPlaying = true;
+      console.log("Motion resumed");
+    }
   }
 
   onEnd() {
@@ -111,29 +156,6 @@ class ObjectPergerakan {
     }
   }
 
-  findNextWaypoint(currentLatLng) {
-    let minDistance = Infinity;
-    let nextIndex = this.currentSegmentIndex + 1;
-
-    for (let i = 0; i < this.waypoints.length - 1; i++) {
-      const segmentStart = this.waypoints[i];
-      const segmentEnd = this.waypoints[i + 1];
-      
-      const d1 = this.calculateDistance(currentLatLng, segmentStart);
-      const d2 = this.calculateDistance(currentLatLng, segmentEnd);
-      const segmentLength = this.calculateDistance(segmentStart, segmentEnd);
-      
-      if (d1 + d2 < segmentLength + 0.00001) {
-        if (d1 < minDistance) {
-          minDistance = d1;
-          nextIndex = i + 1;
-        }
-      }
-    }
-
-    return Math.min(nextIndex, this.waypoints.length - 1);
-  }
-
   getLatLng(status) {
     if (this.lastPosition) {
       return {
@@ -149,13 +171,47 @@ class ObjectPergerakan {
   }
 
   setSpeed(speed, type) {
+    const prevSpeed = this.speed;
     this.speed = speed;
+    
+    if (this.objectPergerakan && prevSpeed !== speed) {
+      const currentTime = Date.now();
+      const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+      
+      // Hitung percepatan
+      const acceleration = (speed - prevSpeed) / deltaTime;
+      
+      // Hitung jarak yang ditempuh selama percepatan
+      const distance = (prevSpeed * deltaTime) + (0.5 * acceleration * Math.pow(deltaTime, 2));
+      
+      // Update kecepatan pada object
+      this.objectPergerakan.motionSpeed(this.speed);
+      
+      this.lastUpdateTime = currentTime;
+    }
   }
 
   mediaSetSpeed(speed) {
     if (this.objectPergerakan) {
-      this.speed = speed * CONFIG.maxSpeedMultiplier;
+      const currentTime = Date.now();
+      const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+      
+      // Hitung target speed dengan multiplier
+      const targetSpeed = Math.min(speed * CONFIG.maxSpeedMultiplier, CONFIG.maxSpeed);
+      
+      // Hitung percepatan yang dibutuhkan
+      const acceleration = (targetSpeed - this.currentSpeed) / deltaTime;
+      
+      // Hitung kecepatan baru dengan percepatan
+      const newSpeed = this.currentSpeed + (acceleration * deltaTime);
+      
+      // Terapkan batas kecepatan
+      this.speed = Math.max(0, Math.min(newSpeed, CONFIG.maxSpeed));
+      this.currentSpeed = this.speed;
+      
+      // Update kecepatan object
       this.objectPergerakan.motionSpeed(this.speed);
+      this.lastUpdateTime = currentTime;
     }
   }
 
@@ -200,54 +256,6 @@ class ObjectPergerakan {
     return true;
   }
 
-  calculateInitialBearing() {
-    if (this.waypoints.length < 2) return 0;
-    return this.calculateBearing(this.waypoints[0], this.waypoints[1]);
-  }
-
-  calculateBearing(start, end) {
-    const startLat = this.toRadians(start[0]);
-    const startLng = this.toRadians(start[1]);
-    const endLat = this.toRadians(end[0]);
-    const endLng = this.toRadians(end[1]);
-
-    const dLng = endLng - startLng;
-
-    const y = Math.sin(dLng) * Math.cos(endLat);
-    const x = Math.cos(startLat) * Math.sin(endLat) -
-              Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
-
-    let bearing = Math.atan2(y, x);
-    bearing = this.toDegrees(bearing);
-    return (bearing + 360) % 360;
-  }
-
-
-  calculateDistance(point1, point2) {
-    const R = 6371;
-    const lat1 = this.toRadians(point1[0]);
-    const lon1 = this.toRadians(point1[1]);
-    const lat2 = this.toRadians(point2[0]);
-    const lon2 = this.toRadians(point2[1]);
-
-    const dLat = lat2 - lat1;
-    const dLon = lon2 - lon1;
-
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-             Math.cos(lat1) * Math.cos(lat2) *
-             Math.sin(dLon/2) * Math.sin(dLon/2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
-
-  toRadians(degrees) {
-    return degrees * Math.PI / 180;
-  }
-
-  toDegrees(radians) {
-    return radians * 180 / Math.PI;
-  }
 }
 
 export { ObjectPergerakan };
