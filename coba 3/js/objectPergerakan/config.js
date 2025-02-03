@@ -2,7 +2,7 @@ export const CONFIG = {
     waypoints: generateRoutes(1),
     markerTypes: ['jet-plane.png', 'aircraft.png', 'monoplane.png', 'small-plane.png'],
     initialSpeed: 100,
-    acceleration: 500,
+    acceleration: 50,
     decceleration: 100,
     maxSpeed: 10000,
     maxSpeedMultiplier: 3,

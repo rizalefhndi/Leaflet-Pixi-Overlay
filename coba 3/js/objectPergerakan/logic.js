@@ -18,11 +18,14 @@ class ObjectPergerakan {
     this.targetSpeed = CONFIG.maxSpeed;
     this.acceleration = CONFIG.acceleration;
     this.lastUpdateTime = Date.now();
+    this.smoothingFactor = 0.15;
+    this.lastFrameTime = 0;
 
-    this.objectPergerakan = false;
+    this.objectPergerakan = null;
     this.motionPolylines = [];
     this.isPlaying = false;
     this.lastPosition = null;
+    this.currentMarker = null;
     this.icon = this.createCustomIcon();
   }
 
@@ -40,11 +43,13 @@ class ObjectPergerakan {
   }
 
   setObjectPergerakan() {
+    this.removeObjectPergerakan();
     const motionPolyline = L.motion.polyline(this.waypoints, {
       color: "transparent",
     }, {
       auto: false,
-      speed: this.speed
+      speed: this.speed,
+      easing: L.Motion.Ease.linear
     }, {
       showMarker: true,
       opacity: 1,
@@ -56,17 +61,31 @@ class ObjectPergerakan {
 
     motionPolyline.addTo(this.map);
 
+    if (this.currentMarker) {
+      this.map.removeLayer(this.currentMarker);
+    }
+
+    this.currentMarker = motionPolyline.getMarker(); 
     this.motionPolylines.push(motionPolyline);
     this.setupEventListeners(motionPolyline);
     this.objectPergerakan = motionPolyline;
   }
 
   removeObjectPergerakan() {
+    if (this.currentMarker) {
+      this.map.removeLayer(this.currentMarker);
+      this.currentMarker = null;
+    }
+
     this.motionPolylines.forEach((polyline) => {
-      polyline.remove();
+      if (polyline && polyline.remove) {
+        polyline.remove();
+      }
     });
+    
     this.motionPolylines = [];
-    this.objectPergerakan = false;
+    this.objectPergerakan = null;
+    this.isPlaying = false;
   }
 
   setupEventListeners(motionPolyline) {
@@ -79,48 +98,69 @@ class ObjectPergerakan {
 
   // onStart() {
   //   this.isPlaying = true;
-    
-  //   const currentTime = Date.now();
-  //   const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-    
-  //   // Hitung kecepatan berdasarkan percepatan
-  //   this.currentSpeed += this.acceleration * deltaTime;
-    
-  //   // Batasi kecepatan pada targetSpeed
-  //   this.speed = Math.min(this.currentSpeed, this.targetSpeed);
-    
+
+  //   const updateMotion = () => {
+  //     if (!this.isPlaying) return;
+
+  //     const currentTime = Date.now();
+  //     const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+
+  //     // Menghitung percepatan dengan smoothing
+  //     if (this.currentSpeed < this.targetSpeed) {
+  //       const accelerationDelta = this.acceleration * deltaTime;
+  //       this.currentSpeed += accelerationDelta;
+  //       this.currentSpeed = Math.min(this.currentSpeed, this.targetSpeed);
+        
+  //       // Aplikasikan smoothing pada perubahan kecepatan
+  //       const smoothedSpeed = this.speed + (this.currentSpeed - this.speed) * this.smoothingFactor;
+  //       this.speed = smoothedSpeed;
+        
+  //       if (this.objectPergerakan) {
+  //         this.objectPergerakan.motionSpeed(this.speed);
+  //       }
+  //     }
+  //     this.lastFrameTime = currentTime;
+  //     requestAnimationFrame(updateMotion);
+  //   };
+
+  //   requestAnimationFrame(updateMotion);
   // }
 
   onStart() {
     this.isPlaying = true;
-    
-    // Jika ini adalah pertama kali, set waktu terakhir
-    if (!this.lastUpdateTime) {
-      this.lastUpdateTime = Date.now();
-    }
+    this.lastFrameTime = performance.now();
+    this.lastUpdateTime = performance.now();
     
     const updateMotion = () => {
-      if (this.isPlaying) {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;  // deltaTime dalam detik
-  
-        // Hitung kecepatan berdasarkan percepatan
-        this.currentSpeed += this.acceleration * deltaTime;
-  
-        // Batasi kecepatan pada targetSpeed
-        this.speed = Math.min(this.currentSpeed, this.targetSpeed);
-  
-        // console.log("Update speed:", this.speed);
-  
-        // Update waktu terakhir untuk perhitungan selanjutnya
-        this.lastUpdateTime = currentTime;
-  
-        // Panggil lagi updateMotion secara berkelanjutan
-        requestAnimationFrame(updateMotion);
+      if (!this.isPlaying) return;
+
+      const currentTime = performance.now();
+      const deltaTime = (currentTime - this.lastFrameTime) / 1000;
+      
+      // Menghitung percepatan
+      if (this.currentSpeed < this.targetSpeed) {
+        const accelerationDelta = this.acceleration * deltaTime;
+        this.currentSpeed += accelerationDelta;
+        this.currentSpeed = Math.min(this.currentSpeed, this.targetSpeed);
+        
+        // smoothing pada perubahan kecepatan
+        const smoothedSpeed = this.speed + (this.currentSpeed - this.speed) * this.smoothingFactor;
+        this.speed = smoothedSpeed;
+
+        // tanpa smoothing
+        // this.speed = this.currentSpeed
+
+        console.log("Update speed:", this.speed);
+        
+        if (this.objectPergerakan) {
+          this.objectPergerakan.motionSpeed(this.speed);
+        }
       }
+
+      this.lastFrameTime = currentTime;
+      requestAnimationFrame(updateMotion);
     };
-  
-    // Mulai pembaruan berkelanjutan
+
     requestAnimationFrame(updateMotion);
   }
   
@@ -128,7 +168,7 @@ class ObjectPergerakan {
     if (this.objectPergerakan) {
       this.objectPergerakan.motionPause();
       this.isPlaying = false;
-      console.log("Motion paused");
+      // console.log("Motion paused");
     }
   }
   
@@ -136,13 +176,13 @@ class ObjectPergerakan {
     if (this.objectPergerakan && !this.isPlaying) {
       this.objectPergerakan.motionResume();
       this.isPlaying = true;
-      console.log("Motion resumed");
+      // console.log("Motion resumed");
     }
   }
   
   onEnd() {
     this.isPlaying = false;
-    console.log("Motion ended");
+    // console.log("Motion ended");
     if (this.objectPergerakan) {
       this.objectPergerakan.motionStop();
     }
@@ -153,9 +193,9 @@ class ObjectPergerakan {
     
     const currentPos = [evt.latlng.lat, evt.latlng.lng];
     this.lastPosition = currentPos;
-  
-    if (evt.distance !== undefined && evt.heading !== undefined) {
-      console.log(`Distance: ${evt.distance}km, Heading: ${evt.heading}°`);
+
+    if (this.currentMarker) {
+      this.currentMarker.setLatLng(evt.latlng);
     }
   }
   
@@ -174,49 +214,42 @@ class ObjectPergerakan {
     return this.speed;
   }
 
-  setSpeed(speed, type) {
-    const prevSpeed = this.speed;
-    this.speed = speed;
+  // setSpeed(speed, type) {
+  //   const prevSpeed = this.speed;
+  //   const targetSpeed = Math.min(speed, CONFIG.maxSpeed);
     
-    if (this.objectPergerakan && prevSpeed !== speed) {
-      const currentTime = Date.now();
-      const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+  //   const interpolateSpeed = () => {
+  //     if (!this.isPlaying) return;
       
-      // Hitung percepatan
-      const acceleration = (speed - prevSpeed) / deltaTime;
+  //     const currentTime = performance.now();
+  //     const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
       
-      // Hitung jarak yang ditempuh selama percepatan
-      const distance = (prevSpeed * deltaTime) + (0.5 * acceleration * Math.pow(deltaTime, 2));
+  //     const speedDiff = targetSpeed - this.speed;
+  //     const smoothedSpeed = this.speed + (speedDiff * this.smoothingFactor);
       
-      // Update kecepatan pada object
-      this.objectPergerakan.motionSpeed(this.speed);
+  //     this.speed = smoothedSpeed;
       
-      this.lastUpdateTime = currentTime;
-    }
+  //     if (this.objectPergerakan) {
+  //       this.objectPergerakan.motionSpeed(this.speed);
+  //     }
+      
+  //     if (Math.abs(speedDiff) > 0.1) {
+  //       this.lastUpdateTime = currentTime;
+  //       requestAnimationFrame(interpolateSpeed);
+  //     }
+  //   };
+    
+  //   requestAnimationFrame(interpolateSpeed);
+  // }
+  setSpeed(speed) {
+    this.targetSpeed = Math.min(speed, CONFIG.maxSpeed);
+    console.log("Target speed set to:", this.targetSpeed);
   }
 
   mediaSetSpeed(speed) {
-    if (this.objectPergerakan) {
-      const currentTime = Date.now();
-      const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-      
-      // Hitung target speed dengan multiplier
-      const targetSpeed = Math.min(speed * CONFIG.maxSpeedMultiplier, CONFIG.maxSpeed);
-      
-      // Hitung percepatan yang dibutuhkan
-      const acceleration = (targetSpeed - this.currentSpeed) / deltaTime;
-      
-      // Hitung kecepatan baru dengan percepatan
-      const newSpeed = this.currentSpeed + (acceleration * deltaTime);
-      
-      // Terapkan batas kecepatan
-      this.speed = Math.max(0, Math.min(newSpeed, CONFIG.maxSpeed));
-      this.currentSpeed = this.speed;
-      
-      // Update kecepatan object
-      this.objectPergerakan.motionSpeed(this.speed);
-      this.lastUpdateTime = currentTime;
-    }
+    const targetSpeed = Math.min(speed * CONFIG.maxSpeedMultiplier, CONFIG.maxSpeed);
+    this.targetSpeed = targetSpeed;
+    this.setSpeed(targetSpeed);
   }
 
   mediaStart() {

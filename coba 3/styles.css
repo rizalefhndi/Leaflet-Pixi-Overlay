@@ -24,6 +24,11 @@
     transform: scale(1.05);
 }
 
+.smooth-motion {
+    transition: transform 0.15s linear;
+    will-change: transform;
+}
+
 .leaflet-layer,
 .leaflet-control-zoom-in,
 .leaflet-control-zoom-out,
