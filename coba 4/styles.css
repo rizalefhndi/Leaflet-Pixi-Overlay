@@ -1,0 +1,143 @@
+.simulation-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.simulation-controls button {
+    margin: 0 5px;
+    padding: 5px 15px;
+    cursor: pointer;
+}
+
+.control-group {
+    margin-bottom: 10px;
+}
+
+.engine-types {
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.pixi-info {
+    color: #4CAF50;
+    margin-bottom: 5px;
+}
+
+.motion-info {
+    color: #FF5722;
+}
+
+.modern-aircraft {
+    border-left: 4px solid #4CAF50;
+    padding-left: 10px;
+}
+
+.classic-aircraft {
+    border-left: 4px solid #FF5722;
+    padding-left: 10px;
+}
+
+.info-card {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+    max-width: 300px;
+}
+
+.card-header h5 {
+    margin: 0;
+    color: #333;
+}
+.card-body {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-body p {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0; 
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.motion-custom-icon {
+    width: 10px; 
+    height: 10px;
+    border-radius: 50%;
+    background: red;
+    border: 2px solid white;
+}
+
+.motion-marker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.motion-marker img {
+    width: 20px;
+    height: 20px;
+}
+
+.marker-label {
+    font-size: 8px;
+    background: rgba(255, 87, 34, 0.7);
+    color: white;
+    padding: 1px 3px;
+    border-radius: 2px;
+    transform: translateY(-3px);
+    pointer-events: none;
+}
+
+.leaflet-marker-icon {
+    transition: transform 0.3s ease;
+}
+
+.leaflet-marker-icon:hover {
+    transform: scale(1.2);
+}
+
+.engine-types {
+    border: 1px solid #ddd;
+    padding: 5px;
+    border-radius: 3px;
+    margin: 5px 0;
+}
+
+.pixi-info, .motion-info {
+    display: flex;
+    align-items: center;
+    margin: 3px 0;
+}
+
+.pixi-info:before, .motion-info:before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+    border-radius: 50%;
+}
+
+.pixi-info:before {
+    background-color: #4CAF50;
+}
+
+.motion-info:before {
+    background-color: #FF5722;
+}
+

@@ -7,6 +7,8 @@ export class SimulationManager {
         this.animationFrameId = null;
         this.utils = null;
         this.initialized = false;
+        this.engineType = 'pixi'; // Add engine type identifier
+
     }
 
     initialize(utils) {
@@ -14,6 +16,8 @@ export class SimulationManager {
         this.initialized = true;
         const container = utils.getContainer();
         container.visible = true;
+        container.sortableChildren = true; // Enable z-index sorting
+
         
         this.objects.forEach((obj) => {
             obj.sprite.visible = true;
@@ -28,7 +32,16 @@ export class SimulationManager {
     }
 
     createObject(id, movement, sprite) {
-        this.objects.set(id, { movement, sprite });
+        // Add engine-specific properties
+        const engineConfig = CONFIG.engineTypes[this.engineType].characteristics;
+        movement.setCharacteristics(engineConfig);
+        
+        this.objects.set(id, { 
+            movement, 
+            sprite,
+            engineType: this.engineType 
+        });
+
         if (this.initialized) {
             this.updateObjectPosition(id);
         }
@@ -126,41 +139,36 @@ export class SimulationManager {
 
     animate() {
         if (!this.isPlaying || !this.utils) return;
+        console.log("Animating PIXI objects");
     
         const deltaTime = 1 / CONFIG.frameRate;
         let allFinished = true;
     
-        // Ambil dan set container
         const container = this.utils.getContainer();
         const renderer = this.utils.getRenderer();
         
-        // Pastikan container visible
         container.visible = true;
         container.alpha = 1;
     
-        // Update semua objek
         this.objects.forEach((obj, id) => {
-            // Reset sprite properties
             obj.sprite.visible = true;
             obj.sprite.alpha = 1;
             
             if (!obj.movement.hasReachedEnd()) {
                 allFinished = false;
                 
-                // Update posisi
-                const newPosition = obj.movement.updatePosition(deltaTime);
+                // Use engine-specific characteristics
+                const characteristics = CONFIG.engineTypes[obj.engineType].characteristics;
+                const newPosition = obj.movement.updatePosition(deltaTime, characteristics);
                 const point = this.utils.latLngToLayerPoint([newPosition.lat, newPosition.lng]);
-                
-                // Set posisi sprite
+                console.log("Updating sprite position:", point);
                 obj.sprite.position.set(point.x, point.y);
                 obj.sprite.rotation = (newPosition.bearing * Math.PI) / 180;
                 
-                // Update card
-                this.updateCard(id);
+                this.updateCard(id, obj.engineType);
             }
         });
     
-        // Render ulang
         renderer.render(container);
     
         if (!allFinished) {
@@ -170,24 +178,25 @@ export class SimulationManager {
         }
     }
 
-    updateCard(id) {
+    updateCard(id, engineType) {
         const obj = this.objects.get(id);
         if (obj) {
             const currentPosition = obj.movement.getCurrentPosition();
             const card = document.getElementById("card");
             if (card.style.display === "block") {
+                const engineClass = engineType === 'pixi' ? 'modern-aircraft' : 'classic-aircraft';
                 const cardBody = card.querySelector(".card-body");
                 cardBody.innerHTML = `
-                    <p><strong>Name:</strong> <span>${id.replace('object', '')}</span></p>
-                    <p><strong>Speed:</strong> <span>${currentPosition.speed.toFixed(2)} km/h</span></p>
-                    <p><strong>Altitude:</strong> <span>${currentPosition.altitude.toFixed(2)} m</span></p>
-                    <p><strong>Fuel:</strong> <span>${currentPosition.fuel} kg</span></p>
-                    <p><strong>Position:</strong> <span>Lat: ${currentPosition.lat.toFixed(6)}, <br> Lng: ${currentPosition.lng.toFixed(6)}</span></p>
+                    <div class="${engineClass}">
+                        <p><strong>Type:</strong> <span>${engineType === 'pixi' ? 'Modern' : 'Classic'} Aircraft</span></p>
+                        <p><strong>ID:</strong> <span>${id}</span></p>
+                        <p><strong>Speed:</strong> <span>${currentPosition.speed.toFixed(2)} km/h</span></p>
+                        <p><strong>Altitude:</strong> <span>${currentPosition.altitude.toFixed(2)} m</span></p>
+                        <p><strong>Fuel:</strong> <span>${currentPosition.fuel} kg</span></p>
+                        <p><strong>Position:</strong> <span>Lat: ${currentPosition.lat.toFixed(6)}, <br> Lng: ${currentPosition.lng.toFixed(6)}</span></p>
+                    </div>
                 `;
             }
-        } else {
-            console.error(`Object with id "${id}" not found.`);
         }
     }
-
 }

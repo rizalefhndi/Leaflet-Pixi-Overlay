@@ -3,48 +3,46 @@ export const CONFIG = {
     markerTypes: ['jet-plane.png', 'aircraft.png', 'monoplane.png', 'small-plane.png'],
     frameRate: 60,
 
-    // Aircraft movement properties
+    // Aircraft properties
     movement: {
         speed: {
-            initial: 5000,          // kph
-            max: 50000,           // kph (sekitar 500 knots)
-            min: 0,            // kph
-            acceleration: 50,   // kph/s
-            deceleration: 30    // kph/s
+            initial: 500,
+            max: 50000,
+            min: 0,
+            acceleration: 50,
+            deceleration: 30
         },
         
         turn: {
-            slack: 15,    // deg/s
-            normal: 30,   // deg/s
-            tight: 60     // deg/s
-            // Interpolation akan dihandle di movement logic
+            slack: 15,
+            normal: 30,
+            tight: 60
         },
         
         altitude: {
-            initial: 100,          // meters
-            max: 10668,         // meters (35,000 feet)
-            min: 0,            // meters
-            climbRate: 5,      // m/s
-            descentRate: 5     // m/s
+            initial: 100,
+            max: 10668,
+            min: 0,
+            climbRate: 5,
+            descentRate: 5
         },
         
         fuel: {
-            capacity: 800,           // kg
+            capacity: 800,
             consumptionRate: {
-                // Base consumption per kilometer at different phases
-                climbing: 4.2,         // kg/km while climbing
-                cruising: 3.5,         // kg/km while cruising (moving straight)
+                climbing: 4.2,
+                cruising: 3.5,
                 turning: {
-                    slack: 3.8,        // kg/km during slack turn
-                    normal: 4.0,       // kg/km during normal turn
-                    tight: 4.5         // kg/km during tight turn
+                    slack: 3.8,
+                    normal: 4.0,
+                    tight: 4.5
                 }
             }
         }
     }
 };
 
-// Fungsi untuk menghasilkan rute
+// Fungsi generate rute
 function generateRoutes(totalRoutes) {
     const baseRoutes = [
         [
@@ -84,11 +82,11 @@ function generateRoutes(totalRoutes) {
     for (let i = 1; i <= totalRoutes; i++) {
         const baseRoute = baseRoutes[i % baseRoutes.length]; // Ambil pola dari baseRoutes
         const newRoute = baseRoute.map(([lat, lng]) => [
-            lat + (Math.random() - 0.5) * 0.1, // Tambahkan variasi latitude
-            lng + (Math.random() - 0.5) * 0.1, // Tambahkan variasi longitude
+            lat + (Math.random() - 0.5) * 0.1, // Variasi latitude
+            lng + (Math.random() - 0.5) * 0.1, // Variasi longitude
         ]);
 
-        // Tambahkan tipe belokan secara acak
+        // Tipe belokan secara acak
         const turnTypes = ["slack", "normal", "tight"];
         const turns = newRoute.map(() => turnTypes[Math.floor(Math.random() * turnTypes.length)]);
 

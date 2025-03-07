@@ -35,7 +35,7 @@ L.PixiOverlay.Animate = {
 
 		this._bounds = L.latLngBounds();
 		this._linePoints = this._convertLatLngs(latlngs);
-		if (!L.Motion.Utils.isFlat(this._linePoints)) {
+		if (!L.PixiOverlay.Utils.isFlat(this._linePoints)) {
 			this._linePoints = this._linePoints[0];
 		}
 
@@ -248,45 +248,43 @@ L.PixiOverlay.Animate = {
 	},
 
 	pixiPause: function () {
-		if (this.animation) {
-		  L.Util.cancelAnimFrame(this.animation);
-		  this.animation = null;
-		  this.fire(L.PixiOverlay.Event.Paused, { layer: this }, false);
-		}
-	
+		if (!this.animation) return this;
+		
+		L.Util.cancelAnimFrame(this.animation);
+		this.animation = null;
+		this.__ellapsedTime = new Date().getTime() - this._startTime;
+		this.fire(L.PixiOverlay.Event.Paused, { 
+			layer: this,
+			time: this.__ellapsedTime 
+		}, false);
 		return this;
 	},
 
 	pixiResume: function () {
-		if (!this.animation && this.__ellapsedTime) {
-		  if (!this.pixiOptions.duration) {
-			if (this.pixiOptions.speed) {
-			  this.pixiOptions.duration = L.PixiOverlay.Utils.getDuration(this._map, this._linePoints, this.pixiOptions.speed);
-			} else {
-			  this.pixiOptions.duration = 0;
-			}
-		  }
-		  this._pixi(new Date().getTime() - this.__ellapsedTime);
-		  this.fire(L.PixiOverlay.Event.Resumed, { layer: this }, false);
+		if (this.animation || !this.__ellapsedTime) return this;
+
+		// Calculate duration if needed
+		if (!this.pixiOptions.duration && this.pixiOptions.speed) {
+			this.pixiOptions.duration = L.PixiOverlay.Utils.getDuration(
+				this._map, 
+				this._linePoints, 
+				this.pixiOptions.speed
+			);
 		}
-	
+
+		const currentTime = new Date().getTime();
+		this._startTime = currentTime - this.__ellapsedTime;
+		this._pixi(this.__ellapsedTime);
+		
+		this.fire(L.PixiOverlay.Event.Resumed, { 
+			layer: this,
+			time: this.__ellapsedTime 
+		}, false);
 		return this;
 	},
 
 	pixiToggle: function () {
-		if (this.animation) {
-		  if (this.__ellapsedTime) {
-			this.pixiPause();
-		  }
-		} else {
-		  if (this.__ellapsedTime) {
-			this.pixiResume();
-		  } else {
-			this.pixiStart();
-		  }
-		}
-	
-		return this;
+		return this.animation ? this.pixiPause() : this.pixiResume();
 	},
 
 	pixiDuration: function (duration) {
@@ -325,3 +323,135 @@ L.PixiOverlay.Animate = {
 	},
 
 }
+L.PixiOverlay.Layer = L.Polyline.extend(L.PixiOverlay.Animate);
+
+L.pixiOverlay = function(latlngs, options, pixiOptions, markerOptions) {
+	const app = new PIXI.Application({
+		transparent: true,
+		antialias: true
+	});
+
+	const overlay = new L.PixiOverlay.Layer(latlngs, {
+		...options,
+		renderer: app.renderer,
+		container: app.stage
+	}, pixiOptions, markerOptions);
+
+	// Add PIXI specific methods
+	overlay.addSprite = function(texture, x, y) {
+		const sprite = new PIXI.Sprite(texture);
+		sprite.position.set(x, y);
+		this.options.container.addChild(sprite);
+		return sprite;
+	};
+
+	overlay.addGraphics = function() {
+		const graphics = new PIXI.Graphics();
+		this.options.container.addChild(graphics);
+		return graphics;
+	};
+
+	overlay.update = function() {
+		this.options.renderer.render(this.options.container);
+	};
+
+	return overlay;
+};
+L.PixiOverlay.Utils = {
+
+	toLatLng: function(input) {
+        // Pastikan input selalu menjadi LatLng
+        return L.latLng(input);
+    },
+
+	 // Interpolasi pada garis
+	 interpolateOnLine: function(map, linePoints, ratio) {
+        if (linePoints.length < 2) {
+            throw new Error("Minimal 2 titik diperlukan untuk interpolasi");
+        }
+
+        // Cari segment yang tepat
+        const totalDistance = this.calculateTotalDistance(linePoints);
+        const targetDistance = totalDistance * ratio;
+        
+        let currentDistance = 0;
+        for (let i = 0; i < linePoints.length - 1; i++) {
+            const segmentDistance = this.getDistance(linePoints[i], linePoints[i+1]);
+            
+            if (currentDistance + segmentDistance >= targetDistance) {
+                const segmentRatio = (targetDistance - currentDistance) / segmentDistance;
+                return {
+                    latLng: this.interpolateLatLng(linePoints[i], linePoints[i+1], segmentRatio),
+                    predecessor: linePoints[i]
+                };
+            }
+            
+            currentDistance += segmentDistance;
+        }
+
+        // Jika ratio 1, kembalikan titik terakhir
+        return {
+            latLng: linePoints[linePoints.length - 1],
+            predecessor: linePoints[linePoints.length - 2]
+        };
+    },
+
+    interpolateLatLng: function(start, end, ratio) {
+        return L.latLng(
+            start.lat + (end.lat - start.lat) * ratio,
+            start.lng + (end.lng - start.lng) * ratio
+        );
+    },
+
+    calculateTotalDistance: function(points) {
+        let totalDistance = 0;
+        for (let i = 0; i < points.length - 1; i++) {
+            totalDistance += this.getDistance(points[i], points[i+1]);
+        }
+        return totalDistance;
+    },
+
+    getDistance: function(point1, point2) {
+        // Menggunakan Haversine formula untuk jarak yang lebih akurat
+        const R = 6371; // Radius bumi dalam km
+        const dLat = this.toRad(point2.lat - point1.lat);
+        const dLon = this.toRad(point2.lng - point1.lng);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(this.toRad(point1.lat)) * Math.cos(this.toRad(point2.lat)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    },
+
+    toRad: function(degrees) {
+        return degrees * Math.PI / 180;
+    },
+
+    getDuration: function(map, points, speed) {
+        const distance = this.calculateTotalDistance(points);
+        return (distance / speed) * 3600 * 1000; // ms
+    },
+
+
+	// Add utility methods for coordinate conversion
+	latLngToPixiPoint: function(map, latlng) {
+		const point = map.latLngToContainerPoint(latlng);
+		return new PIXI.Point(point.x, point.y);
+	},
+
+	// Add distance calculation in pixels
+	getPixelDistance: function(map, latlng1, latlng2) {
+		const p1 = map.latLngToContainerPoint(latlng1);
+		const p2 = map.latLngToContainerPoint(latlng2);
+		return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+	},
+
+	// Add interpolation in pixel space
+	interpolatePixiPoint: function(pointA, pointB, ratio) {
+		return new PIXI.Point(
+			pointA.x + (pointB.x - pointA.x) * ratio,
+			pointA.y + (pointB.y - pointA.y) * ratio
+		);
+	}
+};
