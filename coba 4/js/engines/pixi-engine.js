@@ -1,4 +1,3 @@
-// engines/pixi-engine.js
 import { CONFIG } from '../config.js';
 import { Movement } from '../logic.js';
 
@@ -20,7 +19,7 @@ export class PixiEngine {
     addObject(id, waypoints, texture) {
         // Create sprite
         const sprite = new PIXI.Sprite(texture);
-        sprite.anchor.set(0.05);
+        sprite.anchor.set(0.5);
         sprite.scale.set(0.05);
         sprite.alpha = 100; // Make sure sprite is visible
         sprite.visible = true;

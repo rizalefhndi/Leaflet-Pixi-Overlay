@@ -30,7 +30,7 @@ export const CONFIG = {
             markers: ['monoplane.png', 'small-plane.png'],
             characteristics: {
                 speed: {
-                    initial: 3000,
+                    initial: 5000,
                     max: 30000,
                     min: 500,
                     acceleration: 40,

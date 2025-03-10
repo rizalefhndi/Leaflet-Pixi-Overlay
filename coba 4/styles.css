@@ -82,6 +82,7 @@
 }
 
 .motion-marker {
+    transition: transform 0.3s ease;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -91,6 +92,7 @@
 .motion-marker img {
     width: 20px;
     height: 20px;
+    transform-origin: center;
 }
 
 .marker-label {
@@ -104,7 +106,7 @@
 }
 
 .leaflet-marker-icon {
-    transition: transform 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .leaflet-marker-icon:hover {

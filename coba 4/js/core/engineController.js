@@ -1,4 +1,3 @@
-// js/core/engineController.js
 import { PixiEngine } from '../engines/pixi-engine.js';
 import { MotionEngine } from '../engines/motion-engine.js';
 import { CONFIG } from '../config.js';
