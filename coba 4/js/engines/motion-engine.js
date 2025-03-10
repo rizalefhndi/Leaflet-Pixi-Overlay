@@ -47,21 +47,20 @@ export class MotionEngine {
         motionLine.on('motion', (e) => {
             try {
                 const latLng = e.latlng;
-                if (!latLng) {
-                    console.warn('No latlng in motion event');
-                    return;
-                }
-                
-                marker.setLatLng(latLng);
-                console.log('Marker updated:', latLng);
-                // Ensure marker is using custom icon
-                if (marker._icon && markerOptions.icon) {
-                    marker.setIcon(markerOptions.icon);
-                }
-                
+                if (!latLng || !motionLine.motionMarker) return;
+        
                 if (e.nextLatLng) {
                     const bearing = this.calculateBearing(latLng, e.nextLatLng);
-                    marker._icon.style.transform = `rotate(${bearing}deg)`;
+                    const marker = motionLine.motionMarker;
+                    
+                    if (marker._icon) {
+                        // Get Leaflet's translate transform
+                        const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/);
+                        if (translate) {
+                            // Apply both translate and rotate
+                            marker._icon.style.transform = `${translate[0]} rotate(${bearing}deg)`;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Error in motion event:', error);
@@ -126,8 +125,9 @@ export class MotionEngine {
     
         let bearing = Math.atan2(y, x) * 180 / Math.PI;
         bearing = (bearing + 360) % 360;
-    
-        return bearing;
+        
+        // Add 90 degrees to align marker's heading with its direction
+        return (bearing + 90) % 360;
     }
 
     calculateDuration(route) {
@@ -177,14 +177,14 @@ export class MotionEngine {
                     obj.marker.setLatLng(startPos);
     
                     // Start motion with logging
-                    console.log(`Starting motion for ${id}`, {
-                        route: obj.waypoints.route,
-                        marker: obj.marker.getLatLng()
-                    });
+                    // console.log(`Starting motion for ${id}`, {
+                    //     route: obj.waypoints.route,
+                    //     marker: obj.marker.getLatLng()
+                    // });
                     
                     try {
                         obj.motionLine.motionStart();
-                        console.log(`Motion started successfully for ${id}`);
+                        // console.log(`Motion started successfully for ${id}`);
                         obj.isPlaying = true;
                     } catch (error) {
                         console.error(`Error starting motion for ${id}:`, error);
@@ -201,9 +201,16 @@ export class MotionEngine {
         this.motionObjects.forEach((obj, id) => {
             if (obj.isPlaying) {
                 try {
-                    obj.motionLine.motionStop();
+                    obj.motionLine.motionPause();
                     obj.isPlaying = false;
-                    console.log(`Stopped motion for object ID: ${id}`);
+                    // console.log(`Stopped motion for object ID: ${id}`);
+                    
+                    // Keep the marker visible at current position
+                    if (obj.motionLine.motionMarker) {
+                        const currentPos = obj.motionLine.motionMarker.getLatLng();
+                        obj.marker.setLatLng(currentPos);
+                        obj.marker.setOpacity(1);
+                    }
                 } catch (error) {
                     console.error(`Error stopping motion for object ID: ${id}`, error);
                 }
@@ -215,26 +222,33 @@ export class MotionEngine {
         this.motionObjects.forEach((obj, id) => {
             if (!obj.isPlaying) {
                 try {
-                    // Get current position and next position
+                    // Get current position
+                    const currentPos = obj.marker.getLatLng();
                     const points = obj.motionLine.getLatLngs();
-                    const currentIndex = obj.motionLine._motion ? obj.motionLine._motion._currentIndex : 0;
                     
-                    if (points && points.length > currentIndex + 1) {
-                        const currentPos = points[currentIndex];
-                        const nextPos = points[currentIndex + 1];
-                        
-                        // Calculate and set rotation
-                        const bearing = this.calculateBearing(currentPos, nextPos);
-                        if (obj.marker._icon) {
-                            obj.marker._icon.style.transform = `rotate(${bearing}deg)`;
+                    // Find the closest point in the route to resume from
+                    let closestIndex = 0;
+                    let minDistance = Infinity;
+                    
+                    points.forEach((point, index) => {
+                        const distance = currentPos.distanceTo(point);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = index;
                         }
-                    }
-
-                    obj.motionLine.motionResume();
-                    obj.isPlaying = true;
-                    console.log(`Resumed motion for object ID: ${id}`, {
-                        position: obj.marker.getLatLng()
                     });
+                    
+                    if (points && points.length > closestIndex + 1) {
+                        obj.motionLine._motion._currentIndex = closestIndex;
+                        obj.motionLine.motionResume();
+                        obj.isPlaying = true;
+                        
+                        // console.log(`Resumed motion for object ID: ${id} from index: ${closestIndex}`);
+                    } else {
+                        obj.motionLine.motionStart();
+                        obj.isPlaying = true;
+                        console.log(`Restarted motion for object ID: ${id}`);
+                    }
                 } catch (error) {
                     console.error(`Error resuming motion for object ID: ${id}`, error);
                 }
@@ -262,6 +276,8 @@ export class MotionEngine {
                                     /rotate\([^)]*\)/, 
                                     `rotate(${bearing}deg)`
                                 );
+                        } else {
+                            obj.marker._icon.style.transform = 'rotate(90deg)';
                         }
                     }
                 }

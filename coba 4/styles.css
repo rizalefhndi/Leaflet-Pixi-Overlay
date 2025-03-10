@@ -106,7 +106,7 @@
 }
 
 .leaflet-marker-icon {
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease;
 }
 
 .leaflet-marker-icon:hover {
