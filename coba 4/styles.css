@@ -87,12 +87,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    transform-origin: center center;
 }
 
 .motion-marker img {
     width: 20px;
     height: 20px;
-    transform-origin: center;
+    transform-origin: center center;
 }
 
 .marker-label {
@@ -107,6 +108,7 @@
 
 .leaflet-marker-icon {
     transition: transform 0.3s ease;
+    transform-origin: center center !important;
 }
 
 .leaflet-marker-icon:hover {

@@ -5,10 +5,44 @@ export class MotionEngine {
         this.map = map;
         this.motionObjects = new Map();
         this.markers = new Map();
+        this.currentMarker = null;
+
     }
+
+    cleanup() {
+        this.motionObjects.forEach((obj, id) => {
+            if (obj.marker && this.map.hasLayer(obj.marker)) {
+                this.map.removeLayer(obj.marker);
+            }
+        });
+    }
+
+    // cleanup() {
+    //     if (this.currentMarker && this.map.hasLayer(this.currentMarker)) {
+    //         this.map.removeLayer(this.currentMarker); // Hapus marker dari peta
+    //         this.currentMarker = null; // Reset referensi marker
+    //         console.log('Marker cleaned up');
+    //     }
+    // }
+
+    // cleanup() {
+    //     this.motionObjects.forEach((obj, id) => {
+    //         // Hapus marker dari peta
+    //         if (this.map.hasLayer(obj.marker)) {
+    //             this.map.removeLayer(obj.marker);
+    //         }
+    //         // Hapus motion line dari peta
+    //         if (this.map.hasLayer(obj.motionLine)) {
+    //             this.map.removeLayer(obj.motionLine);
+    //         }
+    //     });
+    //     this.motionObjects.clear(); // Kosongkan koleksi
+    //     console.log('All markers and motion lines cleaned up');
+    // }
 
     initialize() {
         // Nothing special needed for initialization
+        this.cleanup();
     }
 
     addObject(id, waypoints, markerOptions) {
@@ -17,13 +51,28 @@ export class MotionEngine {
             console.error('Invalid waypoints structure:', waypoints);
             return;
         }
-    
+
+        // Hapus marker sebelumnya jika ada
+        // this.cleanup();
+        
+        if (this.motionObjects.has(id)) {
+            const existing = this.motionObjects.get(id);
+            if (existing.motionLine) {
+                if (existing.motionLine.motionMarker) {
+                    this.map.removeLayer(existing.motionLine.motionMarker);
+                }
+                this.map.removeLayer(existing.motionLine);
+            }
+            this.motionObjects.delete(id);
+        }
         // Create marker for motion object
         const marker = L.marker(waypoints.route[0], {
             icon: markerOptions.icon,
             rotationAngle: 0,
             rotationOrigin: 'center center'
         }).addTo(this.map);
+
+        this.currentMarker = marker;
     
         // Create motion path without its own marker
         const motionLine = L.motion.polyline(
@@ -39,62 +88,92 @@ export class MotionEngine {
             },
             {
                 removeOnEnd: false,
-                showMarker: false,
+                showMarker: true,
                 icon: markerOptions.icon
             }
         );
     
         // Update our own marker position and rotation during motion
+        // motionLine.on('motion', (e) => {
+        //     try {
+        //         const latLng = e.latlng;
+        //         if (!latLng) {
+        //             console.warn(`Invalid motion event data for ${id}`);
+        //             return;
+        //         }
+
+        //         marker.setLatLng(latLng);
+                
+        //         if (e.nextLatLng) {
+        //             // Get current point index
+        //             // const points = waypoints.route;
+        //             // const currentIndex = points.findIndex(p => 
+        //             //     p[0] === latLng.lat && p[1] === latLng.lng
+        //             // );
+                    
+        //             // // Get turn type for current segment
+        //             // const turnRate = waypoints.turn[currentIndex] || 'normal';
+                    
+        //             const bearing = this.calculateBearing(
+        //                 {lat: latLng.lat, lng: latLng.lng},
+        //                 {lat: e.nextLatLng.lat, lng: e.nextLatLng.lng},
+        //                 turnRate
+        //             );
+
+        //             marker.setRotationAngle(bearing);
+                    
+        //             console.log(`Bearing: ${bearing}°`);
+        //             // Apply rotation to the marker
+        //             // if (marker._icon) {
+        //             //     const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/) || ['translate3d(0px, 0px, 0px)'];
+        //             //     const currentRotation = this.getCurrentRotation(marker._icon);
+        //             //     const newRotation = this.smoothRotation(currentRotation, bearing, turnRate);
+                        
+        //             //     // marker._icon.style.transform = `${translate[0]} rotate(${newRotation}deg)`;
+        //             //     // marker._currentRotation = newRotation;
+        //             //     marker.setRotationAngle(newRotation);
+
+        //             //     // Log turn information
+        //             //     console.log(`Turn rate: ${turnRate}, Bearing: ${bearing}°, Rotation: ${newRotation}°`);
+        //             // }
+        //         }
+        //     } catch (error) {
+        //         console.error('Error in motion event:', error);
+        //     }
+        // });
+
         motionLine.on('motion', (e) => {
             try {
                 const latLng = e.latlng;
-                if (!latLng) {
-                    console.warn(`Invalid motion event data for ${id}`);
-                    return;
-                }
-                
-                // Update marker position
-                marker.setLatLng(latLng);
-                
+                if (!latLng || !motionLine.motionMarker) return;
+
                 if (e.nextLatLng) {
                     const bearing = this.calculateBearing(
                         {lat: latLng.lat, lng: latLng.lng},
                         {lat: e.nextLatLng.lat, lng: e.nextLatLng.lng}
                     );
-                    
-                    // Apply rotation to the marker
-                    if (marker && marker._icon) {
-                        // Get current transform for position
-                        const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/) || ['translate3d(0px, 0px, 0px)'];
-                        
-                        // Apply smooth rotation
-                        const currentRotation = this.getCurrentRotation(marker._icon);
-                        const newRotation = this.smoothRotation(currentRotation, bearing);
-                        
-                        // Combine translation and rotation
-                        marker._icon.style.transform = `${translate[0]} rotate(${newRotation}deg)`;
-                        
-                        // Store current rotation for next update
-                        marker._currentRotation = newRotation;
-                    }
+
+                    // Update rotation using rotatedMarker plugin
+                    motionLine.motionMarker.setRotationAngle(bearing);
+                    console.log(`Bearing for ${id}: ${bearing}°`);
                 }
             } catch (error) {
                 console.error('Error in motion event:', error);
             }
         });
-    
         // Add other event handlers...
-        motionLine.on('motionstart', () => {
-            console.log(`Motion START for ${id}`);
-        });
+        // motionLine.on('motionstart', () => {
+        //     console.log(`Motion START for ${id}`);
+        // });
     
-        motionLine.on('motionend', () => {
-            console.log(`Motion ended for ${id}`);
-            this.motionObjects.get(id).isPlaying = false;
-        });
+        // motionLine.on('motionend', () => {
+        //     console.log(`Motion ended for ${id}`);
+        //     this.motionObjects.get(id).isPlaying = false;
+        // });
     
         // Add to map
         motionLine.addTo(this.map);
+        // marker.addTo(this.map);
     
         // Store objects
         this.motionObjects.set(id, {
@@ -103,29 +182,22 @@ export class MotionEngine {
             marker,
             isPlaying: false
         });
-    
+        // console.log('events:', motionLine._events);
+
         return motionLine;
     }
 
     removeObject(id) {
-        // Cari objek berdasarkan ID
         const obj = this.motionObjects.get(id);
-        if (!obj) {
-            console.warn(`Object with ID ${id} not found`);
-            return;
+        if (obj) {
+            if (obj.motionLine) {
+                if (obj.motionLine.motionMarker) {
+                    this.map.removeLayer(obj.motionLine.motionMarker);
+                }
+                this.map.removeLayer(obj.motionLine);
+            }
+            this.motionObjects.delete(id);
         }
-
-        // Hapus marker dan motion line dari peta
-        if (this.map.hasLayer(obj.marker)) {
-            this.map.removeLayer(obj.marker);
-        }
-        if (this.map.hasLayer(obj.motionLine)) {
-            this.map.removeLayer(obj.motionLine);
-        }
-
-        // Hapus dari koleksi
-        this.motionObjects.delete(id);
-        console.log(`Object with ID ${id} removed successfully`);
     }
 
     getCurrentRotation(element) {
@@ -134,15 +206,28 @@ export class MotionEngine {
         const match = transform.match(/rotate\(([^)]+)deg\)/);
         return match ? parseFloat(match[1]) : 0;
     }
-    
-    smoothRotation(current, target) {
+    smoothRotation(current, target, turnRate = 'normal') {
+        // Get turn configuration
+        const turnConfig = CONFIG.engineTypes.motion.characteristics.turn;
+        let turnSpeed;
+        
+        switch(turnRate) {
+            case 'slack':
+                turnSpeed = turnConfig.min / 100;
+                break;
+            case 'tight':
+                turnSpeed = turnConfig.max / 100;
+                break;
+            default: // normal
+                turnSpeed = ((turnConfig.min + turnConfig.max) / 2) / 100;
+        }
+        
         // Normalize angles
         let delta = ((target - current + 540) % 360) - 180;
-        // Apply smooth interpolation
-        return (current + delta * 0.2 + 360) % 360;
+        // Apply smooth interpolation with turn rate
+        return (current + delta * turnSpeed + 360) % 360;
     }
-
-    calculateBearing(start, end) {
+    calculateBearing(start, end, turnRate = 'normal') {
         const startLat = start.lat * Math.PI / 180;
         const startLng = start.lng * Math.PI / 180;
         const endLat = end.lat * Math.PI / 180;
@@ -157,8 +242,23 @@ export class MotionEngine {
         let bearing = Math.atan2(y, x) * 180 / Math.PI;
         bearing = (bearing + 360) % 360;
         
+        // Apply turn rate modification
+        const turnConfig = CONFIG.engineTypes.motion.characteristics.turn;
+        let turnMultiplier;
+        
+        switch(turnRate) {
+            case 'slack':
+                turnMultiplier = turnConfig.min / turnConfig.rate;
+                break;
+            case 'tight':
+                turnMultiplier = turnConfig.max / turnConfig.rate;
+                break;
+            default: // normal
+                turnMultiplier = (turnConfig.min + turnConfig.max) / (2 * turnConfig.rate);
+        }
+        
         // Add 90 degrees to align marker's heading with its direction
-        return (bearing + 90) % 360;
+        return (bearing + 90) % 360 * turnMultiplier;
     }
 
     calculateDuration(route) {
@@ -206,12 +306,6 @@ export class MotionEngine {
                     // Set initial position
                     const startPos = obj.waypoints.route[0];
                     obj.marker.setLatLng(startPos);
-    
-                    // Start motion with logging
-                    // console.log(`Starting motion for ${id}`, {
-                    //     route: obj.waypoints.route,
-                    //     marker: obj.marker.getLatLng()
-                    // });
                     
                     try {
                         obj.motionLine.motionStart();
@@ -302,13 +396,12 @@ export class MotionEngine {
                         if (points.length > currentIndex + 1) {
                             const nextPos = points[currentIndex + 1];
                             const bearing = this.calculateBearing(currentPos, nextPos);
-                            obj.marker._icon.style.transform = 
-                                obj.marker._icon.style.transform.replace(
-                                    /rotate\([^)]*\)/, 
-                                    `rotate(${bearing}deg)`
-                                );
-                        } else {
-                            obj.marker._icon.style.transform = 'rotate(90deg)';
+                            obj.marker.setRotationAngle(bearing);
+                            // obj.marker._icon.style.transform = 
+                            //     obj.marker._icon.style.transform.replace(
+                            //         /rotate\([^)]*\)/, 
+                            //         `rotate(${bearing}deg)`
+                            //     );
                         }
                     }
                 }
