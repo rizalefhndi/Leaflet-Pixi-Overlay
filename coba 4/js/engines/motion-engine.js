@@ -17,15 +17,15 @@ export class MotionEngine {
             console.error('Invalid waypoints structure:', waypoints);
             return;
         }
-
+    
         // Create marker for motion object
         const marker = L.marker(waypoints.route[0], {
             icon: markerOptions.icon,
             rotationAngle: 0,
             rotationOrigin: 'center center'
-        });
-
-        // Create motion path
+        }).addTo(this.map);
+    
+        // Create motion path without its own marker
         const motionLine = L.motion.polyline(
             waypoints.route,
             {
@@ -39,43 +39,63 @@ export class MotionEngine {
             },
             {
                 removeOnEnd: false,
-                showMarker: true,
+                showMarker: false,
                 icon: markerOptions.icon
             }
         );
-
+    
+        // Update our own marker position and rotation during motion
         motionLine.on('motion', (e) => {
             try {
                 const latLng = e.latlng;
-                if (!latLng || !motionLine.motionMarker) return;
-        
+                if (!latLng) {
+                    console.warn(`Invalid motion event data for ${id}`);
+                    return;
+                }
+                
+                // Update marker position
+                marker.setLatLng(latLng);
+                
                 if (e.nextLatLng) {
-                    const bearing = this.calculateBearing(latLng, e.nextLatLng);
-                    const marker = motionLine.motionMarker;
+                    const bearing = this.calculateBearing(
+                        {lat: latLng.lat, lng: latLng.lng},
+                        {lat: e.nextLatLng.lat, lng: e.nextLatLng.lng}
+                    );
                     
-                    if (marker._icon) {
-                        // Get Leaflet's translate transform
-                        const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/);
-                        if (translate) {
-                            // Apply both translate and rotate
-                            marker._icon.style.transform = `${translate[0]} rotate(${bearing}deg)`;
-                        }
+                    // Apply rotation to the marker
+                    if (marker && marker._icon) {
+                        // Get current transform for position
+                        const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/) || ['translate3d(0px, 0px, 0px)'];
+                        
+                        // Apply smooth rotation
+                        const currentRotation = this.getCurrentRotation(marker._icon);
+                        const newRotation = this.smoothRotation(currentRotation, bearing);
+                        
+                        // Combine translation and rotation
+                        marker._icon.style.transform = `${translate[0]} rotate(${newRotation}deg)`;
+                        
+                        // Store current rotation for next update
+                        marker._currentRotation = newRotation;
                     }
                 }
             } catch (error) {
                 console.error('Error in motion event:', error);
             }
         });
-
+    
+        // Add other event handlers...
+        motionLine.on('motionstart', () => {
+            console.log(`Motion START for ${id}`);
+        });
+    
         motionLine.on('motionend', () => {
             console.log(`Motion ended for ${id}`);
             this.motionObjects.get(id).isPlaying = false;
         });
-
+    
         // Add to map
         motionLine.addTo(this.map);
-        marker.addTo(this.map);
-
+    
         // Store objects
         this.motionObjects.set(id, {
             waypoints,
@@ -83,10 +103,7 @@ export class MotionEngine {
             marker,
             isPlaying: false
         });
-
-        // Add click handler
-        marker.on('click', () => this.showInfoCard(id, waypoints));
-
+    
         return motionLine;
     }
 
@@ -109,6 +126,20 @@ export class MotionEngine {
         // Hapus dari koleksi
         this.motionObjects.delete(id);
         console.log(`Object with ID ${id} removed successfully`);
+    }
+
+    getCurrentRotation(element) {
+        if (!element) return 0;
+        const transform = element.style.transform;
+        const match = transform.match(/rotate\(([^)]+)deg\)/);
+        return match ? parseFloat(match[1]) : 0;
+    }
+    
+    smoothRotation(current, target) {
+        // Normalize angles
+        let delta = ((target - current + 540) % 360) - 180;
+        // Apply smooth interpolation
+        return (current + delta * 0.2 + 360) % 360;
     }
 
     calculateBearing(start, end) {
