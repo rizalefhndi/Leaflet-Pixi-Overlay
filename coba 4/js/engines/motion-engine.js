@@ -17,65 +17,14 @@ export class MotionEngine {
         });
     }
 
-    // cleanup() {
-    //     if (this.currentMarker && this.map.hasLayer(this.currentMarker)) {
-    //         this.map.removeLayer(this.currentMarker); // Hapus marker dari peta
-    //         this.currentMarker = null; // Reset referensi marker
-    //         console.log('Marker cleaned up');
-    //     }
-    // }
-
-    // cleanup() {
-    //     this.motionObjects.forEach((obj, id) => {
-    //         // Hapus marker dari peta
-    //         if (this.map.hasLayer(obj.marker)) {
-    //             this.map.removeLayer(obj.marker);
-    //         }
-    //         // Hapus motion line dari peta
-    //         if (this.map.hasLayer(obj.motionLine)) {
-    //             this.map.removeLayer(obj.motionLine);
-    //         }
-    //     });
-    //     this.motionObjects.clear(); // Kosongkan koleksi
-    //     console.log('All markers and motion lines cleaned up');
-    // }
-
     initialize() {
         // Nothing special needed for initialization
         this.cleanup();
     }
 
     addObject(id, waypoints, markerOptions) {
-        // Check if waypoints is properly structured
-        if (!waypoints || !waypoints.route) {
-            console.error('Invalid waypoints structure:', waypoints);
-            return;
-        }
-
-        // Hapus marker sebelumnya jika ada
-        // this.cleanup();
-        
-        if (this.motionObjects.has(id)) {
-            const existing = this.motionObjects.get(id);
-            if (existing.motionLine) {
-                if (existing.motionLine.motionMarker) {
-                    this.map.removeLayer(existing.motionLine.motionMarker);
-                }
-                this.map.removeLayer(existing.motionLine);
-            }
-            this.motionObjects.delete(id);
-        }
-        // Create marker for motion object
-        const marker = L.marker(waypoints.route[0], {
-            icon: markerOptions.icon,
-            rotationAngle: 0,
-            rotationOrigin: 'center center'
-        }).addTo(this.map);
-
-        this.currentMarker = marker;
-    
-        // Create motion path without its own marker
-        const motionLine = L.motion.polyline(
+        // Create motion polyline
+        const objectPergerakan = L.motion.polyline(
             waypoints.route,
             {
                 color: 'transparent',
@@ -93,111 +42,14 @@ export class MotionEngine {
             }
         );
     
-        // Update our own marker position and rotation during motion
-        // motionLine.on('motion', (e) => {
-        //     try {
-        //         const latLng = e.latlng;
-        //         if (!latLng) {
-        //             console.warn(`Invalid motion event data for ${id}`);
-        //             return;
-        //         }
-
-        //         marker.setLatLng(latLng);
-                
-        //         if (e.nextLatLng) {
-        //             // Get current point index
-        //             // const points = waypoints.route;
-        //             // const currentIndex = points.findIndex(p => 
-        //             //     p[0] === latLng.lat && p[1] === latLng.lng
-        //             // );
-                    
-        //             // // Get turn type for current segment
-        //             // const turnRate = waypoints.turn[currentIndex] || 'normal';
-                    
-        //             const bearing = this.calculateBearing(
-        //                 {lat: latLng.lat, lng: latLng.lng},
-        //                 {lat: e.nextLatLng.lat, lng: e.nextLatLng.lng},
-        //                 turnRate
-        //             );
-
-        //             marker.setRotationAngle(bearing);
-                    
-        //             console.log(`Bearing: ${bearing}°`);
-        //             // Apply rotation to the marker
-        //             // if (marker._icon) {
-        //             //     const translate = marker._icon.style.transform.match(/translate3d\([^)]+\)/) || ['translate3d(0px, 0px, 0px)'];
-        //             //     const currentRotation = this.getCurrentRotation(marker._icon);
-        //             //     const newRotation = this.smoothRotation(currentRotation, bearing, turnRate);
-                        
-        //             //     // marker._icon.style.transform = `${translate[0]} rotate(${newRotation}deg)`;
-        //             //     // marker._currentRotation = newRotation;
-        //             //     marker.setRotationAngle(newRotation);
-
-        //             //     // Log turn information
-        //             //     console.log(`Turn rate: ${turnRate}, Bearing: ${bearing}°, Rotation: ${newRotation}°`);
-        //             // }
-        //         }
-        //     } catch (error) {
-        //         console.error('Error in motion event:', error);
-        //     }
-        // });
-
-        motionLine.on('motion', (e) => {
-            try {
-                const latLng = e.latlng;
-                if (!latLng || !motionLine.motionMarker) return;
-
-                if (e.nextLatLng) {
-                    const bearing = this.calculateBearing(
-                        {lat: latLng.lat, lng: latLng.lng},
-                        {lat: e.nextLatLng.lat, lng: e.nextLatLng.lng}
-                    );
-
-                    // Update rotation using rotatedMarker plugin
-                    motionLine.motionMarker.setRotationAngle(bearing);
-                    console.log(`Bearing for ${id}: ${bearing}°`);
-                }
-            } catch (error) {
-                console.error('Error in motion event:', error);
-            }
-        });
-        // Add other event handlers...
-        // motionLine.on('motionstart', () => {
-        //     console.log(`Motion START for ${id}`);
-        // });
-    
-        // motionLine.on('motionend', () => {
-        //     console.log(`Motion ended for ${id}`);
-        //     this.motionObjects.get(id).isPlaying = false;
-        // });
-    
-        // Add to map
-        motionLine.addTo(this.map);
-        // marker.addTo(this.map);
-    
-        // Store objects
+        // Store only motion object
         this.motionObjects.set(id, {
             waypoints,
-            motionLine,
-            marker,
+            objectPergerakan,
             isPlaying: false
         });
-        // console.log('events:', motionLine._events);
-
-        return motionLine;
-    }
-
-    removeObject(id) {
-        const obj = this.motionObjects.get(id);
-        if (obj) {
-            if (obj.motionLine) {
-                if (obj.motionLine.motionMarker) {
-                    this.map.removeLayer(obj.motionLine.motionMarker);
-                }
-                this.map.removeLayer(obj.motionLine);
-            }
-            this.motionObjects.delete(id);
-        }
+    
+        return objectPergerakan;
     }
 
     getCurrentRotation(element) {
@@ -295,28 +147,17 @@ export class MotionEngine {
         this.motionObjects.forEach((obj, id) => {
             if (!obj.isPlaying) {
                 try {
-                    // Ensure layers are visible
-                    if (!this.map.hasLayer(obj.motionLine)) {
-                        obj.motionLine.addTo(this.map);
-                    }
-                    if (!this.map.hasLayer(obj.marker)) {
-                        obj.marker.addTo(this.map);
+                    // Only add motion polyline to map
+                    if (!this.map.hasLayer(obj.objectPergerakan)) {
+                        obj.objectPergerakan.addTo(this.map);
                     }
     
-                    // Set initial position
-                    const startPos = obj.waypoints.route[0];
-                    obj.marker.setLatLng(startPos);
-                    
-                    try {
-                        obj.motionLine.motionStart();
-                        // console.log(`Motion started successfully for ${id}`);
-                        obj.isPlaying = true;
-                    } catch (error) {
-                        console.error(`Error starting motion for ${id}:`, error);
-                    }
+                    // Start motion
+                    obj.objectPergerakan.motionStart();
+                    obj.isPlaying = true;
     
                 } catch (error) {
-                    console.error(`Error starting motion for ${id}:`, error);
+                    console.error(`Error playing motion for ${id}:`, error);
                 }
             }
         });
@@ -326,13 +167,13 @@ export class MotionEngine {
         this.motionObjects.forEach((obj, id) => {
             if (obj.isPlaying) {
                 try {
-                    obj.motionLine.motionPause();
+                    obj.objectPergerakan.motionPause();
                     obj.isPlaying = false;
                     // console.log(`Stopped motion for object ID: ${id}`);
                     
                     // Keep the marker visible at current position
-                    if (obj.motionLine.motionMarker) {
-                        const currentPos = obj.motionLine.motionMarker.getLatLng();
+                    if (obj.objectPergerakan.motionMarker) {
+                        const currentPos = obj.objectPergerakan.motionMarker.getLatLng();
                         obj.marker.setLatLng(currentPos);
                         obj.marker.setOpacity(1);
                     }
@@ -347,66 +188,71 @@ export class MotionEngine {
         this.motionObjects.forEach((obj, id) => {
             if (!obj.isPlaying) {
                 try {
-                    // Get current position
-                    const currentPos = obj.marker.getLatLng();
-                    const points = obj.motionLine.getLatLngs();
+                    if (!this.map.hasLayer(obj.objectPergerakan)) {
+                        obj.objectPergerakan.addTo(this.map);
+                    }
+
+                    const points = obj.objectPergerakan.getLatLngs();
+                    if (!points || points.length === 0) {
+                        console.warn(`No route points found for ${id}`);
+                        return;
+                    }
+
+                    let currentPos;
+                    if (obj.objectPergerakan.motionMarker) {
+                        currentPos = obj.objectPergerakan.motionMarker.getLatLng();
+                    } else {
+                        currentPos = points[0];
+                    }
                     
-                    // Find the closest point in the route to resume from
                     let closestIndex = 0;
                     let minDistance = Infinity;
                     
                     points.forEach((point, index) => {
-                        const distance = currentPos.distanceTo(point);
+                        const distance = L.latLng(currentPos).distanceTo(point);
                         if (distance < minDistance) {
                             minDistance = distance;
                             closestIndex = index;
                         }
                     });
                     
-                    if (points && points.length > closestIndex + 1) {
-                        obj.motionLine._motion._currentIndex = closestIndex;
-                        obj.motionLine.motionResume();
+                    // Resume from closest point
+                    if (points.length > closestIndex + 1) {
+                        obj.objectPergerakan._motion._currentIndex = closestIndex;
+                        obj.objectPergerakan.motionResume();
                         obj.isPlaying = true;
-                        
-                        // console.log(`Resumed motion for object ID: ${id} from index: ${closestIndex}`);
                     } else {
-                        obj.motionLine.motionStart();
+                        obj.objectPergerakan.motionStart();
                         obj.isPlaying = true;
-                        console.log(`Restarted motion for object ID: ${id}`);
                     }
+    
                 } catch (error) {
-                    console.error(`Error resuming motion for object ID: ${id}`, error);
+                    console.error(`Error resuming motion for ${id}:`, error);
                 }
             }
         });
     }
-
     onMapMove() {
         this.motionObjects.forEach((obj, id) => {
             try {
-                if (obj.motionLine && obj.motionLine._motion) {
-                    const points = obj.motionLine.getLatLngs();
-                    const currentIndex = obj.motionLine._motion._currentIndex || 0;
+                if (obj.objectPergerakan && 
+                    obj.objectPergerakan._motion && 
+                    obj.objectPergerakan.motionMarker) {
                     
-                    if (points && points.length > currentIndex) {
+                    const points = obj.objectPergerakan.getLatLngs();
+                    const currentIndex = obj.objectPergerakan._motion._currentIndex || 0;
+                    
+                    if (points && points.length > currentIndex + 1) {
                         const currentPos = points[currentIndex];
-                        obj.marker.setLatLng(currentPos);
+                        const nextPos = points[currentIndex + 1];
+                        const bearing = this.calculateBearing(currentPos, nextPos);
                         
-                        // Update rotation if there's a next point
-                        if (points.length > currentIndex + 1) {
-                            const nextPos = points[currentIndex + 1];
-                            const bearing = this.calculateBearing(currentPos, nextPos);
-                            obj.marker.setRotationAngle(bearing);
-                            // obj.marker._icon.style.transform = 
-                            //     obj.marker._icon.style.transform.replace(
-                            //         /rotate\([^)]*\)/, 
-                            //         `rotate(${bearing}deg)`
-                            //     );
-                        }
+                        // Use motion marker instead of separate marker
+                        obj.objectPergerakan.motionMarker.setRotationAngle(bearing);
                     }
                 }
             } catch (error) {
-                console.warn(`Error updating position for object ID: ${id}`, error);
+                console.warn(`Motion update skipped for ${id}`);
             }
         });
     }
