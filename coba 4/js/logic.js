@@ -92,6 +92,25 @@ export class Movement {
         }
     }
 
+    calculateDuration() {
+        if (!this.waypoints || !this.waypoints.route) {
+            console.error('Waypoints not properly initialized');
+            return 0;
+        }
+    
+        let totalDistance = 0;
+        for (let i = 0; i < this.waypoints.route.length - 1; i++) {
+            const p1 = L.latLng(this.waypoints.route[i]);
+            const p2 = L.latLng(this.waypoints.route[i + 1]);
+            totalDistance += p1.distanceTo(p2);
+        }
+        
+        const speed = this.characteristics?.speed?.initial || CONFIG.engineTypes.motion.characteristics.speed.initial;
+        const duration = (totalDistance / 1000) / (speed / 3600);
+    
+        return duration;
+    }
+
     calculateInitialBearing() {
         const start = [this.waypoints.route[0][0], this.waypoints.route[0][1]];
         const end = [this.waypoints.route[1][0], this.waypoints.route[1][1]];

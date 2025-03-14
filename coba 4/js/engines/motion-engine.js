@@ -1,29 +1,47 @@
 import { CONFIG } from '../config.js';
+import { Movement } from '../logic.js';
 
 export class MotionEngine {
     constructor(map) {
         this.map = map;
         this.motionObjects = new Map();
-        this.markers = new Map();
-        this.currentMarker = null;
+        this.isPlaying = false;
+        this.animationFrameId = null;
+    }
 
+    initialize(utils) {
+        // Store utils if needed similar to PixiEngine
+        this.utils = utils;
     }
 
     cleanup() {
-        this.motionObjects.forEach((obj, id) => {
-            if (obj.marker && this.map.hasLayer(obj.marker)) {
-                this.map.removeLayer(obj.marker);
+        this.motionObjects.forEach((obj) => {
+            if (obj.objectPergerakan) {
+                if (obj.objectPergerakan.motionMarker) {
+                    this.map.removeLayer(obj.objectPergerakan.motionMarker);
+                }
+                this.map.removeLayer(obj.objectPergerakan);
             }
         });
-    }
-
-    initialize() {
-        // Nothing special needed for initialization
-        this.cleanup();
+        this.motionObjects.clear();
+        
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
     }
 
     addObject(id, waypoints, markerOptions) {
-        // Create motion polyline
+        // Create movement logic
+        const movement = new Movement(waypoints);
+        movement.setCharacteristics(CONFIG.engineTypes.motion.characteristics);
+    
+        // Calculate duration with speed adjustment
+        const baseDuration = movement.calculateDuration();
+        const speedFactor = 1000;
+        const adjustedDuration = baseDuration * speedFactor;
+    
+        // Create motion polyline with adjusted duration
         const objectPergerakan = L.motion.polyline(
             waypoints.route,
             {
@@ -32,7 +50,7 @@ export class MotionEngine {
             },
             {
                 auto: false,
-                duration: this.calculateDuration(waypoints.route) * 1000,
+                duration: adjustedDuration,
                 easing: L.Motion.Ease.linear
             },
             {
@@ -41,219 +59,175 @@ export class MotionEngine {
                 icon: markerOptions.icon
             }
         );
-    
-        // Store only motion object
-        this.motionObjects.set(id, {
-            waypoints,
-            objectPergerakan,
-            isPlaying: false
+        
+        // Add interactive capability similar to PixiEngine
+        if (objectPergerakan.motionMarker) {
+            objectPergerakan.motionMarker.on('click', () => this.showInfoCard(id));
+        }
+
+        // Add motion handler using Movement logic - improved to handle rotation
+        objectPergerakan.on('motion', (e) => {
+            if (!e.latlng || !objectPergerakan.motionMarker) return;
+
+            // Update movement logic
+            const newPosition = movement.updatePosition(1/CONFIG.frameRate);
+            
+            // Update marker position
+            objectPergerakan.motionMarker.setLatLng([newPosition.lat, newPosition.lng]);
+            
+            // Apply rotation directly using bearing from movement logic
+            // This ensures consistent rotation behavior
+            objectPergerakan.motionMarker.setRotationAngle(newPosition.bearing);
         });
-    
+
+        // Store objects
+        this.motionObjects.set(id, {
+            movement,
+            objectPergerakan,
+            engineType: 'motion'
+        });
+
         return objectPergerakan;
     }
 
-    getCurrentRotation(element) {
-        if (!element) return 0;
-        const transform = element.style.transform;
-        const match = transform.match(/rotate\(([^)]+)deg\)/);
-        return match ? parseFloat(match[1]) : 0;
-    }
-    smoothRotation(current, target, turnRate = 'normal') {
-        // Get turn configuration
-        const turnConfig = CONFIG.engineTypes.motion.characteristics.turn;
-        let turnSpeed;
-        
-        switch(turnRate) {
-            case 'slack':
-                turnSpeed = turnConfig.min / 100;
-                break;
-            case 'tight':
-                turnSpeed = turnConfig.max / 100;
-                break;
-            default: // normal
-                turnSpeed = ((turnConfig.min + turnConfig.max) / 2) / 100;
-        }
-        
-        // Normalize angles
-        let delta = ((target - current + 540) % 360) - 180;
-        // Apply smooth interpolation with turn rate
-        return (current + delta * turnSpeed + 360) % 360;
-    }
-    calculateBearing(start, end, turnRate = 'normal') {
-        const startLat = start.lat * Math.PI / 180;
-        const startLng = start.lng * Math.PI / 180;
-        const endLat = end.lat * Math.PI / 180;
-        const endLng = end.lng * Math.PI / 180;
-    
-        const dLng = endLng - startLng;
-    
-        const y = Math.sin(dLng) * Math.cos(endLat);
-        const x = Math.cos(startLat) * Math.sin(endLat) -
-                 Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
-    
-        let bearing = Math.atan2(y, x) * 180 / Math.PI;
-        bearing = (bearing + 360) % 360;
-        
-        // Apply turn rate modification
-        const turnConfig = CONFIG.engineTypes.motion.characteristics.turn;
-        let turnMultiplier;
-        
-        switch(turnRate) {
-            case 'slack':
-                turnMultiplier = turnConfig.min / turnConfig.rate;
-                break;
-            case 'tight':
-                turnMultiplier = turnConfig.max / turnConfig.rate;
-                break;
-            default: // normal
-                turnMultiplier = (turnConfig.min + turnConfig.max) / (2 * turnConfig.rate);
-        }
-        
-        // Add 90 degrees to align marker's heading with its direction
-        return (bearing + 90) % 360 * turnMultiplier;
-    }
+    showInfoCard(id) {
+        const obj = this.motionObjects.get(id);
+        if (!obj) return;
 
-    calculateDuration(route) {
-        let totalDistance = 0;
-        for (let i = 0; i < route.length - 1; i++) {
-            const p1 = L.latLng(route[i]);
-            const p2 = L.latLng(route[i + 1]);
-            totalDistance += p1.distanceTo(p2);
-        }
-        
-        const speed = CONFIG.engineTypes.motion.characteristics.speed.initial;
-        const duration = (totalDistance / 1000) / (speed / 3600);
-
-        return duration;
-    }
-
-    showInfoCard(id, waypoints) {
         const card = document.getElementById("card");
         if (!card) return;
 
         card.style.display = "block";
-        const cardBody = card.querySelector(".card-body");
+        const currentPosition = obj.movement.getCurrentPosition();
         
+        const cardBody = card.querySelector(".card-body");
         cardBody.innerHTML = `
             <div class="classic-aircraft">
                 <p><strong>ID:</strong> <span>${id}</span></p>
                 <p><strong>Type:</strong> <span>Classic Aircraft</span></p>
-                <p><strong>Route Points:</strong> <span>${waypoints.route.length}</span></p>
+                <p><strong>Speed:</strong> <span>${currentPosition.speed.toFixed(2)} km/h</span></p>
+                <p><strong>Altitude:</strong> <span>${currentPosition.altitude.toFixed(2)} m</span></p>
+                <p><strong>Fuel:</strong> <span>${currentPosition.fuel} kg</span></p>
+                <p><strong>Position:</strong> <span>Lat: ${currentPosition.lat.toFixed(6)}, <br> Lng: ${currentPosition.lng.toFixed(6)}</span></p>
             </div>
         `;
     }
 
+    updateObjectPosition(id) {
+        const obj = this.motionObjects.get(id);
+        if (!obj || !obj.objectPergerakan || !obj.objectPergerakan.motionMarker) return;
+        
+        const currentPos = obj.movement.getCurrentPosition();
+        obj.objectPergerakan.motionMarker.setLatLng([currentPos.lat, currentPos.lng]);
+        obj.objectPergerakan.motionMarker.setRotationAngle(currentPos.bearing);
+    }
+
     play() {
-        this.motionObjects.forEach((obj, id) => {
-            if (!obj.isPlaying) {
+        if (!this.isPlaying) {
+            this.isPlaying = true;
+            
+            this.motionObjects.forEach((obj, id) => {
                 try {
-                    // Only add motion polyline to map
                     if (!this.map.hasLayer(obj.objectPergerakan)) {
                         obj.objectPergerakan.addTo(this.map);
                     }
-    
-                    // Start motion
+                    obj.movement.resume();
                     obj.objectPergerakan.motionStart();
-                    obj.isPlaying = true;
-    
                 } catch (error) {
                     console.error(`Error playing motion for ${id}:`, error);
                 }
-            }
-        });
+            });
+            
+            // Add animation loop similar to PixiEngine for consistent updates
+            this.animate();
+        }
     }
 
     stop() {
+        this.isPlaying = false;
+        
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        
         this.motionObjects.forEach((obj, id) => {
-            if (obj.isPlaying) {
-                try {
-                    obj.objectPergerakan.motionPause();
-                    obj.isPlaying = false;
-                    // console.log(`Stopped motion for object ID: ${id}`);
-                    
-                    // Keep the marker visible at current position
-                    if (obj.objectPergerakan.motionMarker) {
-                        const currentPos = obj.objectPergerakan.motionMarker.getLatLng();
-                        obj.marker.setLatLng(currentPos);
-                        obj.marker.setOpacity(1);
-                    }
-                } catch (error) {
-                    console.error(`Error stopping motion for object ID: ${id}`, error);
-                }
+            try {
+                obj.movement.pause();
+                obj.objectPergerakan.motionPause();
+            } catch (error) {
+                console.error(`Error stopping motion for ${id}:`, error);
             }
         });
     }
 
     resume() {
-        this.motionObjects.forEach((obj, id) => {
-            if (!obj.isPlaying) {
+        if (!this.isPlaying) {
+            this.isPlaying = true;
+            
+            this.motionObjects.forEach((obj, id) => {
                 try {
-                    if (!this.map.hasLayer(obj.objectPergerakan)) {
-                        obj.objectPergerakan.addTo(this.map);
-                    }
-
-                    const points = obj.objectPergerakan.getLatLngs();
-                    if (!points || points.length === 0) {
-                        console.warn(`No route points found for ${id}`);
-                        return;
-                    }
-
-                    let currentPos;
-                    if (obj.objectPergerakan.motionMarker) {
-                        currentPos = obj.objectPergerakan.motionMarker.getLatLng();
-                    } else {
-                        currentPos = points[0];
-                    }
-                    
-                    let closestIndex = 0;
-                    let minDistance = Infinity;
-                    
-                    points.forEach((point, index) => {
-                        const distance = L.latLng(currentPos).distanceTo(point);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestIndex = index;
-                        }
-                    });
-                    
-                    // Resume from closest point
-                    if (points.length > closestIndex + 1) {
-                        obj.objectPergerakan._motion._currentIndex = closestIndex;
-                        obj.objectPergerakan.motionResume();
-                        obj.isPlaying = true;
-                    } else {
-                        obj.objectPergerakan.motionStart();
-                        obj.isPlaying = true;
-                    }
-    
+                    obj.movement.resume();
+                    obj.objectPergerakan.motionResume();
                 } catch (error) {
                     console.error(`Error resuming motion for ${id}:`, error);
                 }
+            });
+            
+            this.animate();
+        }
+    }
+    
+    animate() {
+        if (!this.isPlaying) return;
+        
+        const deltaTime = 1 / CONFIG.frameRate;
+        let allFinished = true;
+        
+        this.motionObjects.forEach((obj, id) => {
+            if (!obj.movement.hasReachedEnd()) {
+                allFinished = false;
+                
+                // Force update marker rotation to ensure consistent heading
+                if (obj.objectPergerakan && obj.objectPergerakan.motionMarker) {
+					console.log("Animating Motion objects"); // Pastikan ini muncul di konsol
+                    const currentPos = obj.movement.getCurrentPosition();
+                    obj.objectPergerakan.motionMarker.setRotationAngle(currentPos.bearing);
+                }
             }
         });
+        
+        if (!allFinished) {
+            this.animationFrameId = requestAnimationFrame(() => this.animate());
+        } else {
+            this.stop();
+        }
     }
+
     onMapMove() {
         this.motionObjects.forEach((obj, id) => {
-            try {
-                if (obj.objectPergerakan && 
-                    obj.objectPergerakan._motion && 
-                    obj.objectPergerakan.motionMarker) {
-                    
-                    const points = obj.objectPergerakan.getLatLngs();
-                    const currentIndex = obj.objectPergerakan._motion._currentIndex || 0;
-                    
-                    if (points && points.length > currentIndex + 1) {
-                        const currentPos = points[currentIndex];
-                        const nextPos = points[currentIndex + 1];
-                        const bearing = this.calculateBearing(currentPos, nextPos);
-                        
-                        // Use motion marker instead of separate marker
-                        obj.objectPergerakan.motionMarker.setRotationAngle(bearing);
-                    }
-                }
-            } catch (error) {
-                console.warn(`Motion update skipped for ${id}`);
-            }
+            this.updateObjectPosition(id);
         });
+    }
+    
+    // Helper method to calculate bearing between two points
+    // This ensures consistent rotation calculation with Movement class
+    calculateBearing(start, end) {
+        const toRadians = (degrees) => degrees * Math.PI / 180;
+        const toDegrees = (radians) => radians * 180 / Math.PI;
+        
+        const lat1 = toRadians(start.lat);
+        const lon1 = toRadians(start.lng);
+        const lat2 = toRadians(end.lat);
+        const lon2 = toRadians(end.lng);
+
+        const deltaLon = lon2 - lon1;
+
+        const y = Math.sin(deltaLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) -
+                 Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+
+        let bearing = toDegrees(Math.atan2(y, x));
+        return (bearing + 360) % 360;
     }
 }
