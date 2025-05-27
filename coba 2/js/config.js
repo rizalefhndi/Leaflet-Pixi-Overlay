@@ -1,12 +1,12 @@
 export const CONFIG = {
-    waypoints: generateRoutes(1000),
+    waypoints: generateRoutes(100),
     markerTypes: ['jet-plane.png', 'aircraft.png', 'monoplane.png', 'small-plane.png'],
     frameRate: 60,
 
     // Aircraft properties
     movement: {
         speed: {
-            initial: 500,
+            initial: 5000,
             max: 50000,
             min: 0,
             acceleration: 50,
@@ -28,7 +28,7 @@ export const CONFIG = {
         },
         
         fuel: {
-            capacity: 800,
+            capacity: 80000,
             consumptionRate: {
                 climbing: 4.2,
                 cruising: 3.5,
@@ -46,34 +46,25 @@ export const CONFIG = {
 function generateRoutes(totalRoutes) {
     const baseRoutes = [
         [
-            [-6.1751, 106.8272], // Jakarta (Monas)
-            [-6.2884, 106.7176], // Tangerang
-            [-6.4055, 106.8126], // Depok
-            [-6.2375, 107.0026], // Bekasi
-            [-6.3297, 107.3112], // Cikarang
-            [-6.2646, 106.9916],  // Cibubur
-            [-6.6026, 106.8042], // Bogor
-            [-6.9147, 107.6098] // Bandung
+            [-6.11981, 106.65700], // WIII
+            [-6.54399, 107.94100], // KASAL
+            [-6.69798, 108.56000], // CA (NDB)
+            [-6.79036, 110.13700], // PIALA
+            [-6.97469, 110.38000], // ANY (VOR)
+            [-6.99264, 111.41900], // BA (NDB)
+            [-7.37983, 112.78700]  // WARR
         ],
         [
-            [-6.1751, 106.8272], // Jakarta (Monas)
-            [-6.2646, 106.9916], // Cibubur
-            [-6.2884, 106.7176], // Tangerang
-            [-6.6026, 106.8042], // Bogor
-            [-7.7956, 110.3695], // Yogyakarta
-            [-7.5655, 110.8317], // Surakarta
-            [-6.9932, 110.4229], // Semarang
-            [-6.9147, 107.6098] // Bandung
+            [-6.11981, 106.65700], // WIII
+            [-6.54399, 107.94100], // KASAL
+            [-6.79036, 110.13700], // PIALA
+            [-7.5655, 110.8317]    // WARS (Yogyakarta)
         ],
         [
-            [-6.1751, 106.8272], // Jakarta
-            [-6.6026, 106.8042], // Bogor
-            [-6.9147, 107.6098], // Bandung
-            [-6.8915, 109.6753], // Pekalongan
-            [-6.7695, 108.5508],  // Cirebon
-            [-6.9932, 110.4229],  // Semarang
-            [-6.6026, 106.8042], // Bogor
-            [-6.9147, 107.6098] // Bandung
+           [-6.11981, 106.65700], // WIII
+            [-6.6026, 106.8042],   // BOGOR (titik fix alternatif)
+            [-6.79036, 110.13700], // PIALA
+            [-6.9932, 110.4229]    // WASS (Semarang)
         ],
     ];
 

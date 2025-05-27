@@ -25,11 +25,40 @@
         import { initializePixiOverlay } from './js/view.js';
         const map = L.map('map').setView([-6.1751, 106.8272], 10);
 
-        L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-            attribution: 'Mini Projek | Game Server © 2025',
-			subdomains:['mt0','mt1','mt2','mt3'],
-			maxZoom: 20,
+        // L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+
+        //     attribution: 'Mini Projek | Game Server © 2025',
+		// 	subdomains:['mt0','mt1','mt2','mt3'],
+		// 	maxZoom: 20,
+        // }).addTo(map);
+
+        L.tileLayer('https://maps.googleapis.com/maps/vt?pb=!1m5!1m4!1i{z}!2i{x}!3i{y}!4i256!2m3!1e0!2sm!3i733491829!3m18!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcC52Om9uLHMuZTpsfHAudjpvZmZ8cC5zOi0xMDAscy5lOmwudC5mfHAuczozNnxwLmM6IzAwMDAwMHxwLmw6NDB8cC52Om9mZixzLmU6bC50LnN8cC52Om9mZnxwLmM6IzAwMDAwMHxwLmw6MTYscy5lOmwuaXxwLnY6b2ZmLHMudDoxfHMuZTpnLmZ8cC5jOiMwMDAwMDB8cC5sOjIwLHMudDoxfHMuZTpnLnN8cC5jOiMwMDAwMDB8cC5sOjE3fHAudzoxLjIscy50OjE4fHMuZTpsLnR8cC52Om9uLHMudDo1fHMuZTpnfHAuYzojMDAwMDAwfHAubDoyMCxzLnQ6NXxzLmU6Zy5mfHAuYzojNGQ2MDU5LHMudDo1fHMuZTpnLnN8cC5jOiM0ZDYwNTkscy50OjgyfHMuZTpnLmZ8cC5jOiM0ZDYwNTkscy50OjJ8cy5lOmd8cC5sOjIxLHMudDoyfHMuZTpnLmZ8cC5jOiM0ZDYwNTkscy50OjJ8cy5lOmcuc3xwLmM6IzRkNjA1OSxzLnQ6M3xzLmU6Z3xwLnY6b258cC5jOiM3ZjhkODkscy50OjN8cy5lOmcuZnxwLmM6IzdmOGQ4OSxzLnQ6NDl8cy5lOmcuZnxwLmM6IzdmOGQ4OXxwLmw6MTcscy50OjQ5fHMuZTpnLnN8cC5jOiM3ZjhkODl8cC5sOjI5fHAudzowLjIscy50OjUwfHMuZTpnfHAuYzojMDAwMDAwfHAubDoxOCxzLnQ6NTB8cy5lOmcuZnxwLmM6IzdmOGQ4OSxzLnQ6NTB8cy5lOmcuc3xwLmM6IzdmOGQ4OSxzLnQ6NTF8cy5lOmd8cC5jOiMwMDAwMDB8cC5sOjE2LHMudDo1MXxzLmU6Zy5mfHAuYzojN2Y4ZDg5LHMudDo1MXxzLmU6Zy5zfHAuYzojN2Y4ZDg5LHMudDo0fHMuZTpnfHAuYzojMDAwMDAwfHAubDoxOSxzLnQ6MTA1OXxzLmU6bC50fHAudjpvbixzLnQ6NnxwLmM6IzJiMzYzOHxwLnY6b24scy50OjZ8cy5lOmd8cC5jOiMyYjM2Mzh8cC5sOjE3LHMudDo2fHMuZTpnLmZ8cC5jOiMyNDI4MmIscy50OjZ8cy5lOmcuc3xwLmM6IzI0MjgyYixzLnQ6NnxzLmU6bHxwLnY6b2ZmLHMudDo2fHMuZTpsLnR8cC52Om9mZixzLnQ6NnxzLmU6bC50LmZ8cC52Om9mZixzLnQ6NnxzLmU6bC50LnN8cC52Om9mZixzLnQ6NnxzLmU6bC5pfHAudjpvZmY!4e0', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
         }).addTo(map);
+        
+
+        const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/1747906200/256/{z}/{x}/{y}/2/1_1.png', {
+            opacity: 0.6,
+            attribution: 'Radar data © RainViewer',
+            tileSize: 256,
+            zIndex: 1000,
+            maxZoom: 12,
+            maxNativeZoom: 12,
+            bounds: [[-85.0511, -180], [85.0511, 180]]
+        });
+
+        // Tambah layer navigasi dari FlightPlanDatabase
+            const navLayer = L.tileLayer('https://gis.flightplandatabase.com/tile/nav/{z}/{x}/{y}.png', {
+            attribution: '&copy; FlightPlanDatabase',
+            maxZoom: 10
+        });
+
+        navLayer.addTo(map);
+
+        // Tambahkan ke peta
+        radarLayer.addTo(map);
 
         initializePixiOverlay(map);
     </script>

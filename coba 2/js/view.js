@@ -41,8 +41,8 @@ export function initializePixiOverlay(map) {
             const waypoints = CONFIG.waypoints[route];
             
             // Create a Leaflet polyline from waypoints
-            const polyline = L.polyline(waypoints, { color: 'blue', weight: 0.5 });
-            // polyline.addTo(map); // Add the polyline to the map
+            const polyline = L.polyline(waypoints, { color: 'red', weight: 0.5 });
+            polyline.addTo(map); // Add the polyline to the map
         });
 
 
